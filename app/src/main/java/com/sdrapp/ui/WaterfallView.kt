@@ -1,5 +1,6 @@
 package com.sdrapp.ui
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,16 +9,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.*
+import kotlin.math.exp
 import kotlinx.coroutines.delay
+
+private class WaterfallState {
+    var bitmap: Bitmap? = null
+    var image: ImageBitmap? = null
+    var rowIndex = 0
+    var lastFrame = -1
+}
 
 @Composable
 fun WaterfallView(
@@ -25,15 +33,14 @@ fun WaterfallView(
     isPlaying: Boolean
 ) {
     val textMeasurer = rememberTextMeasurer()
-    var scrollOffset by remember { mutableFloatStateOf(0f) }
-    var frameCount by remember { mutableIntStateOf(0) }
+    val wf = remember { WaterfallState() }
+    var frame by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             while (true) {
-                scrollOffset += 1f
-                frameCount++
-                delay(30)
+                frame++
+                delay(60)
             }
         }
     }
@@ -46,73 +53,91 @@ fun WaterfallView(
             .padding(4.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
+            val w = size.width.toInt().coerceAtLeast(1)
+            val h = size.height.toInt().coerceAtLeast(1)
+            val f = frame
 
-            drawRect(Color.Black)
-
-            val gridColor = Color(0xFF0A1A10)
-            for (i in 0..10) {
-                val x = w * i / 10f
-                drawLine(gridColor, Offset(x, 0f), Offset(x, h), strokeWidth = 1f)
-            }
-            for (i in 0..4) {
-                val y = h * i / 4f
-                drawLine(gridColor, Offset(0f, y), Offset(w, y), strokeWidth = 1f)
+            if (wf.bitmap == null || wf.bitmap!!.width != w || wf.bitmap!!.height != h) {
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                bmp.eraseColor(android.graphics.Color.BLACK)
+                wf.bitmap = bmp
+                wf.image = bmp.asImageBitmap()
+                wf.rowIndex = 0
+                wf.lastFrame = -1
             }
 
-            val signals = listOf(
-                Triple(-0.15f, 0.02f, 0.8f),
-                Triple(0.08f, 0.01f, 1.0f),
-                Triple(0.25f, 0.03f, 0.6f)
-            )
+            val bmp = wf.bitmap!!
+            val image = wf.image!!
 
-            val rowHeight = 1f
-            for (row in 0 until h.toInt()) {
-                val timeOffset = (scrollOffset + row) * 0.01f
-                for (px in 0..w.toInt() step 3) {
-                    val freq = px / w
-
-                    var intensity = 0.01f + (Math.random() * 0.01f).toFloat()
-                    for ((sigFreq, sigBW, sigAmp) in signals) {
-                        val d = (freq - 0.5f - sigFreq) / sigBW
-                        val wobble = sin(timeOffset * 2 + sigFreq * 10).toFloat() * 0.002f
-                        intensity += sigAmp * 0.4f * exp(-d * d * 3)
-                    }
-
-                    val finalIntensity = intensity.coerceIn(0f, 1f)
-                    val color = when {
-                        finalIntensity < 0.05f -> Color(0xFF000010)
-                        finalIntensity < 0.15f -> Color(0xFF001030)
-                        finalIntensity < 0.3f -> Color(0xFF0044AA)
-                        finalIntensity < 0.5f -> Color(0xFF00AA44)
-                        finalIntensity < 0.7f -> Color(0xFFFFAA00)
-                        else -> Color(0xFFFF4400)
-                    }
-
-                    drawRect(
-                        color,
-                        topLeft = Offset(px.toFloat(), row.toFloat()),
-                        size = Size(3f, rowHeight)
-                    )
+            if (isPlaying && f != wf.lastFrame) {
+                wf.lastFrame = f
+                wf.rowIndex = if (wf.rowIndex <= 0) h - 1 else wf.rowIndex - 1
+                val row = IntArray(w)
+                val t = f * 0.02f
+                for (x in 0 until w) {
+                    val fx = x.toFloat() / w
+                    var intensity = 0.015f + ((x * 7 + f * 13) % 5) * 0.004f
+                    intensity += signalPeak(fx, 0.42f, 0.02f, 0.55f, t)
+                    intensity += signalPeak(fx, 0.58f, 0.010f, 0.75f, t)
+                    intensity += signalPeak(fx, 0.72f, 0.03f, 0.40f, t)
+                    row[x] = intensityColor(intensity)
                 }
+                bmp.setPixels(row, 0, w, 0, wf.rowIndex, w, 1)
             }
 
-            val centerX = w / 2f + 0.08f * w
+            val r = wf.rowIndex
+            val topH = h - r
+            if (topH > 0) {
+                drawImage(
+                    image = image,
+                    srcOffset = IntOffset(0, r),
+                    srcSize = IntSize(w, topH),
+                    dstOffset = IntOffset(0, 0),
+                    dstSize = IntSize(w, topH)
+                )
+            }
+            if (r > 0) {
+                drawImage(
+                    image = image,
+                    srcOffset = IntOffset(0, 0),
+                    srcSize = IntSize(w, r),
+                    dstOffset = IntOffset(0, topH),
+                    dstSize = IntSize(w, r)
+                )
+            }
+
+            val centerX = w / 2f
             drawLine(
                 Color.White.copy(alpha = 0.6f),
                 Offset(centerX, 0f),
-                Offset(centerX, h),
+                Offset(centerX, h.toFloat()),
                 strokeWidth = 2f
             )
 
             val labelStyle = TextStyle(color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
             drawText(
                 textMeasurer,
-                "Time →",
+                "Time ->",
                 topLeft = Offset(4f, 4f),
                 style = labelStyle
             )
         }
+    }
+}
+
+private fun signalPeak(fx: Float, center: Float, width: Float, amp: Float, t: Float): Float {
+    val d = (fx - center - 0.01f * kotlin.math.sin(t * 2f)) / width
+    return amp * 0.5f * exp(-d * d * 3f)
+}
+
+private fun intensityColor(v: Float): Int {
+    val i = v.coerceIn(0f, 1f)
+    return when {
+        i < 0.05f -> 0xFF000010.toInt()
+        i < 0.15f -> 0xFF001030.toInt()
+        i < 0.30f -> 0xFF0044AA.toInt()
+        i < 0.50f -> 0xFF00AA44.toInt()
+        i < 0.70f -> 0xFFFFAA00.toInt()
+        else -> 0xFFFF4400.toInt()
     }
 }

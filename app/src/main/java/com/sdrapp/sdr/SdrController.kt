@@ -115,7 +115,7 @@ class SdrController(
         _state.value = _state.value.copy(playing = true, status = "Playing")
 
         thread = Thread({ readerLoop(dev) }, "SdrReader").apply {
-            priority = Thread.MAX_PRIORITY
+            priority = Thread.NORM_PRIORITY
             start()
         }
     }
@@ -137,6 +137,7 @@ class SdrController(
     private fun readerLoop(dev: SdrDevice) {
         val buf = ByteArray(1 shl 18) // 256 KiB
         val audioOut = FloatArray(1 shl 15)
+        var lastLevelUpdate = 0L
         while (running) {
             val n = dev.readSync(buf, 0, buf.size)
             if (n <= 0) {
@@ -149,8 +150,12 @@ class SdrController(
             val count = d.process(buf, n, audioOut)
             audio.write(audioOut, count)
 
-            val dbm = computeLevel(buf, n)
-            _state.value = _state.value.copy(signalDbm = dbm)
+            val now = System.currentTimeMillis()
+            if (now - lastLevelUpdate >= 200) {
+                lastLevelUpdate = now
+                val dbm = computeLevel(buf, n)
+                _state.value = _state.value.copy(signalDbm = dbm)
+            }
         }
     }
 

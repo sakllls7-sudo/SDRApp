@@ -33,7 +33,7 @@ fun SpectrumView(
         if (isPlaying) {
             while (true) {
                 phase += 0.1f
-                delay(50)
+                delay(80)
             }
         }
     }
@@ -70,9 +70,6 @@ fun SpectrumView(
                 drawLine(gridColor, Offset(0f, y), Offset(w, y), strokeWidth = 1f)
             }
 
-            val spectrumPoints = mutableListOf<Offset>()
-            val noisePoints = mutableListOf<Offset>()
-
             val signals = listOf(
                 Triple(-0.2f, 0.03f, 0.7f),
                 Triple(0.1f, 0.015f, 0.9f),
@@ -80,28 +77,26 @@ fun SpectrumView(
                 Triple(-0.5f, 0.02f, 0.4f)
             )
 
-            for (px in 0..w.toInt() step 2) {
+            val step = 4
+            val count = w.toInt() / step + 2
+            val ys = FloatArray(count)
+            for (i in 0 until count) {
+                val px = i * step
                 val freq = (px / w - 0.5f) * span
 
-                var power = -80f + (Math.random() * 8 - 4).toFloat()
+                var power = -80f + sin((px * 0.37f + phase) * 1.7f) * 4f + sin(px * 0.11f) * 3f
                 for ((sigFreq, sigBW, sigAmp) in signals) {
                     val d = (freq - sigFreq * span) / (sigBW * span)
                     power += sigAmp * 30f * exp(-d * d * 4)
                 }
 
-                power += 3f * sin(phase + px * 0.02f).toFloat()
-
                 val y = ((power + 80f) / 80f * h).coerceIn(0f, h)
-
-                spectrumPoints.add(Offset(px.toFloat(), y))
-                noisePoints.add(Offset(px.toFloat(), ((power + 80f) / 80f * h).coerceIn(0f, h)))
+                ys[i] = y
             }
 
             val spectrumPath = Path().apply {
-                if (spectrumPoints.isNotEmpty()) {
-                    moveTo(spectrumPoints[0].x, spectrumPoints[0].y)
-                    spectrumPoints.drop(1).forEach { lineTo(it.x, it.y) }
-                }
+                moveTo(0f, ys[0])
+                for (i in 1 until count) lineTo((i * step).toFloat(), ys[i])
             }
 
             val fillPath = Path().apply {
