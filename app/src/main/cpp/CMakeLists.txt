@@ -1,8 +1,37 @@
 cmake_minimum_required(VERSION 3.18.1)
-project(sdrapp_audio)
+project(sdrapp_core LANGUAGES C CXX)
 
-add_library(sdrapp_audio SHARED aaudio_wrapper.cpp)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Find RTL-SDR
+find_library(rtlsdr-lib rtlsdr)
 find_library(log-lib log)
 
-target_link_libraries(sdrapp_audio ${log-lib} aaudio)
+add_library(sdrapp_core SHARED
+    jni_bridge.cpp
+    signal_path/signal_path.cpp
+    signal_path/source.cpp
+    signal_path/demod.cpp
+    signal_path/sink.cpp
+    buffer/buffer.h
+)
+
+target_include_directories(sdrapp_core PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/signal_path
+    ${CMAKE_CURRENT_SOURCE_DIR}/buffer
+)
+
+target_link_libraries(sdrapp_core
+    ${rtlsdr-lib}
+    ${log-lib}
+    aaudio
+)
+
+# Compiler flags
+target_compile_options(sdrapp_core PRIVATE
+    -Wall -Wextra -Wno-unused-parameter
+    -O2 -DNDEBUG
+)
