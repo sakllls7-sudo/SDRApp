@@ -21,7 +21,7 @@ class SpectrumAnalyzer {
         private set
     @Volatile var sampleRate: Int = 2_400_000
         private set
-    @Volatile var fftSize: Int = 1024
+    @Volatile var lastSeq: Long = 0L
         private set
 
     private var fft = Fft(1024)
@@ -105,6 +105,7 @@ class SpectrumAnalyzer {
 
         bins = avg.copyOf()
         seq++
+        lastSeq++
     }
 
     @Synchronized
@@ -112,6 +113,7 @@ class SpectrumAnalyzer {
         avgInit = false
         bins = FloatArray(0)
         seq = 0L
+        lastSeq = 0L
     }
 
     fun setCenter(center: Double) {

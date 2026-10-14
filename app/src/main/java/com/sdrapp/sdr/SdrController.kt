@@ -377,6 +377,7 @@ class SdrController(
             waterfallSpeed = waterfallSpeed
         )
         analyzer.configure(fftSize, fftWindow, _state.value.sampleRate, _state.value.frequency)
+        analyzer.reset()
         persist()
     }
 
