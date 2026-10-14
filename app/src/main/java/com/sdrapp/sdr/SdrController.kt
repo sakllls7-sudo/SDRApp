@@ -180,6 +180,7 @@ class SdrController(
         val st0 = _state.value
         analyzer.configure(st0.fftSize, st0.fftWindow, st0.sampleRate, st0.frequency)
         analyzer.reset()
+        dev.startStreaming()
         audio.start()
         running = true
         _state.value = _state.value.copy(playing = true, status = "Воспроизведение")

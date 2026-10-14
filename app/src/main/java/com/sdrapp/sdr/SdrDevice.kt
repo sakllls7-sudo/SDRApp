@@ -39,6 +39,9 @@ interface SdrDevice {
      */
     fun readSync(buffer: ByteArray, offset: Int, length: Int): Int
 
+    /** (Re)start streaming; called once before reading begins. */
+    fun startStreaming(): Boolean = true
+
     val gainValuesTenthDb: IntArray
         get() = GAINS_TENTH_DB
 

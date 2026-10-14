@@ -51,11 +51,11 @@ class RtlSdrDevice(
         const val SYSB = 2
         const val IICB = 6
 
-        const val DEMOD_CTL_1 = 0x3000
-        const val DEMOD_CTL = 0x300b
+        const val DEMOD_CTL_1 = 0x300b
+        const val DEMOD_CTL = 0x3000
         const val USB_SYSCTL = 0x2000
-        const val USB_EPA_MAXPKT = 0x2002
-        const val USB_EPA_CTL = 0x2004
+        const val USB_EPA_MAXPKT = 0x2158
+        const val USB_EPA_CTL = 0x2148
 
         // SYSB GPIO registers (bias tee)
         const val GPO = 0x3001
@@ -315,6 +315,13 @@ class RtlSdrDevice(
         val offs = (ppm.toLong() * -1L * (1L shl 24) / 1_000_000L).toInt()
         demodWriteReg(1, 0x3f, offs and 0xff)
         demodWriteReg(1, 0x3e, (offs shr 8) and 0x3f)
+    }
+
+    /** Reset and start the bulk-in endpoint (mirrors rtlsdr_reset_buffer). */
+    override fun startStreaming(): Boolean {
+        writeReg(USBB, USB_EPA_CTL, 0x1002, 2)
+        writeReg(USBB, USB_EPA_CTL, 0x0000, 2)
+        return true
     }
 
     // ----- public SDR API -------------------------------------------------
