@@ -186,7 +186,7 @@ class SdrController(
         _state.value = _state.value.copy(playing = true, status = "Воспроизведение")
 
         thread = Thread({ readerLoop(dev) }, "SdrReader").apply {
-            priority = Thread.NORM_PRIORITY
+            priority = Thread.MAX_PRIORITY
             start()
         }
     }

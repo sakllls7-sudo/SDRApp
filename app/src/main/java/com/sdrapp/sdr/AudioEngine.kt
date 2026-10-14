@@ -28,7 +28,7 @@ class AudioEngine(private val sampleRate: Int = 48_000) {
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        val bufSize = if (minBuf > 0) minBuf * 2 else sampleRate / 2 * 2
+        val bufSize = if (minBuf > 0) minBuf * 4 else sampleRate / 2 * 4
 
         val t = AudioTrack.Builder()
             .setAudioAttributes(
