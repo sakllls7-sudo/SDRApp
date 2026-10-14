@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include <algorithm>
+#include <thread>
 
 template <typename T>
 class RingBuffer {

@@ -45,6 +45,7 @@ public:
     ~SignalPath();
 
     bool configure(const SignalPathConfig& config);
+    bool apply_config();  // internal
     bool start();
     void stop();
     bool is_running() const { return running_.load(); }

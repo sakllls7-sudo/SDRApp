@@ -37,6 +37,7 @@ public:
     virtual bool set_bias_tee(bool enable) = 0;
     // Called by Java to push IQ data
     virtual void push_iq(const int8_t* data, size_t len) = 0;
+    virtual void set_iq_callback(std::function<void(const int8_t*, size_t)> cb) = 0;
 };
 
 class SourceManager {
