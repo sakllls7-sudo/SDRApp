@@ -153,6 +153,10 @@ fun WaterfallView(
                 strokeWidth = 2f
             )
 
+            val axisStyle = TextStyle(color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
+            drawText(textMeasurer, formatAxis(frequency - spanHz / 2.0), topLeft = Offset(4f, 4f), style = axisStyle)
+            drawText(textMeasurer, formatAxis(frequency + spanHz / 2.0), topLeft = Offset(w - 74f, 4f), style = axisStyle)
+
             if (bins == null || bins.size <= 1) {
                 drawText(
                     textMeasurer,

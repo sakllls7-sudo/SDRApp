@@ -27,6 +27,17 @@ internal fun formatSpan(hz: Double): String {
     }
 }
 
+/** Absolute frequency label for the spectrum axis. */
+internal fun formatAxis(hz: Double): String {
+    val a = kotlin.math.abs(hz)
+    return when {
+        a >= 1_000_000_000 -> String.format(Locale.US, "%.4f GHz", hz / 1_000_000_000.0)
+        a >= 1_000_000 -> String.format(Locale.US, "%.3f MHz", hz / 1_000_000.0)
+        a >= 1_000 -> String.format(Locale.US, "%.2f kHz", hz / 1_000.0)
+        else -> String.format(Locale.US, "%.0f Hz", hz)
+    }
+}
+
 @Composable
 fun SpectrumView(
     frequency: Double,
@@ -173,12 +184,11 @@ fun SpectrumView(
                 strokeWidth = 2f
             )
 
-            val quarterLabel = formatSpan(spanHz / 4.0)
-            val centerLabel = formatSpan(spanHz)
-            drawText(textMeasurer, "-$centerLabel", topLeft = Offset(4f, 4f), style = labelStyle)
-            drawText(textMeasurer, "-$quarterLabel", topLeft = Offset(w * 0.25f, 4f), style = labelStyle)
-            drawText(textMeasurer, "+$quarterLabel", topLeft = Offset(w * 0.75f - 24f, 4f), style = labelStyle)
-            drawText(textMeasurer, "+$centerLabel", topLeft = Offset(w - 36f, 4f), style = labelStyle)
+            val leftHz = frequency - spanHz / 2.0
+            val rightHz = frequency + spanHz / 2.0
+            drawText(textMeasurer, formatAxis(leftHz), topLeft = Offset(4f, 4f), style = labelStyle)
+            drawText(textMeasurer, formatAxis(frequency), topLeft = Offset(centerX - 34f, 4f), style = labelStyle)
+            drawText(textMeasurer, formatAxis(rightHz), topLeft = Offset(w - 74f, 4f), style = labelStyle)
         }
     }
 }
