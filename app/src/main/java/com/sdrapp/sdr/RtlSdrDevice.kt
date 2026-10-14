@@ -319,8 +319,22 @@ class RtlSdrDevice(
 
     /** Reset and start the bulk-in endpoint (mirrors rtlsdr_reset_buffer). */
     override fun startStreaming(): Boolean {
+        // Dummy read
+        readReg(USBB, USB_EPA_CTL, 2)
+        try {
+            Thread.sleep(10)
+        } catch (_: InterruptedException) {
+        }
         writeReg(USBB, USB_EPA_CTL, 0x1002, 2)
+        try {
+            Thread.sleep(10)
+        } catch (_: InterruptedException) {
+        }
         writeReg(USBB, USB_EPA_CTL, 0x0000, 2)
+        try {
+            Thread.sleep(10)
+        } catch (_: InterruptedException) {
+        }
         return true
     }
 
