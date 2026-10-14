@@ -38,7 +38,7 @@ fun TopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Default.Settings, "Settings", tint = Color.White)
+            Icon(Icons.Default.Settings, "Настройки", tint = Color.White)
         }
 
         Spacer(Modifier.width(8.dp))
@@ -55,7 +55,7 @@ fun TopBar(
         IconButton(onClick = onConnectToggle) {
             Icon(
                 Icons.Default.Usb,
-                "Connect",
+                "Подключить",
                 tint = if (isConnected) SpectrumGreen else Color.Gray
             )
         }
@@ -63,7 +63,7 @@ fun TopBar(
         IconButton(onClick = onPlayToggle, enabled = isConnected) {
             Icon(
                 if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                if (isPlaying) "Stop" else "Play",
+                if (isPlaying) "Стоп" else "Воспроизведение",
                 tint = when {
                     !isConnected -> Color.DarkGray
                     isPlaying -> Color.Red
@@ -75,7 +75,7 @@ fun TopBar(
         IconButton(onClick = onRecordToggle, enabled = isConnected) {
             Icon(
                 Icons.Default.FiberManualRecord,
-                "Record IQ",
+                "Запись IQ",
                 tint = when {
                     !isConnected -> Color.DarkGray
                     isRecording -> Color.Red

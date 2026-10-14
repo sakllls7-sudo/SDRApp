@@ -160,7 +160,7 @@ fun WaterfallView(
             if (bins == null || bins.size <= 1) {
                 drawText(
                     textMeasurer,
-                    "No waterfall - press Play",
+                    "Нет водопада — включите воспроизведение",
                     topLeft = Offset(w * 0.28f, h * 0.45f),
                     style = TextStyle(color = Color(0xFF668866), fontSize = 13.sp)
                 )

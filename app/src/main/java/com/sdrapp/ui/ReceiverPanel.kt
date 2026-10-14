@@ -49,7 +49,7 @@ fun ReceiverPanel(
             .padding(8.dp)
     ) {
         Text(
-            "RECEIVER",
+            "ПРИЁМНИК",
             color = Color(0xFF88AAFF),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -58,7 +58,7 @@ fun ReceiverPanel(
 
         Spacer(Modifier.height(8.dp))
 
-        Text("DEMODULATOR", color = Color(0xFF6688AA), fontSize = 10.sp)
+        Text("ДЕМОДУЛЯТОР", color = Color(0xFF6688AA), fontSize = 10.sp)
 
         Spacer(Modifier.height(4.dp))
 
@@ -83,7 +83,7 @@ fun ReceiverPanel(
 
         Spacer(Modifier.height(8.dp))
 
-        Text("GAIN: ${gain.toInt()}%", color = Color.White, fontSize = 11.sp)
+        Text("УСИЛЕНИЕ: ${gain.toInt()}%", color = Color.White, fontSize = 11.sp)
         Slider(
             value = gain,
             onValueChange = onGainChange,
@@ -97,7 +97,7 @@ fun ReceiverPanel(
 
         Spacer(Modifier.height(4.dp))
 
-        Text("BANDWIDTH: ${formatFrequency(bandwidth.toDouble())}", color = Color.White, fontSize = 11.sp)
+        Text("ПОЛОСА: ${formatFrequency(bandwidth.toDouble())}", color = Color.White, fontSize = 11.sp)
         Slider(
             value = bandwidth,
             onValueChange = onBandwidthChange,
@@ -111,7 +111,7 @@ fun ReceiverPanel(
 
         Spacer(Modifier.height(8.dp))
 
-        Text("FILTERS", color = Color(0xFF6688AA), fontSize = 10.sp)
+        Text("ФИЛЬТРЫ", color = Color(0xFF6688AA), fontSize = 10.sp)
 
         Spacer(Modifier.height(4.dp))
 
@@ -130,7 +130,7 @@ fun ReceiverPanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, null, tint = WaterfallBlue, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Signal", color = Color.White, fontSize = 11.sp)
+                    Text("Сигнал", color = Color.White, fontSize = 11.sp)
                 }
                 Text(
                     String.format("%.1f dBFS", signalDbm),

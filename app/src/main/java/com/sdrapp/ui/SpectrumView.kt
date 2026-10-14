@@ -171,7 +171,7 @@ fun SpectrumView(
             } else {
                 drawText(
                     textMeasurer,
-                    "No spectrum - press Play",
+                        "Нет спектра — включите воспроизведение",
                     topLeft = Offset(w * 0.30f, h * 0.45f),
                     style = TextStyle(color = Color(0xFF668866), fontSize = 13.sp)
                 )

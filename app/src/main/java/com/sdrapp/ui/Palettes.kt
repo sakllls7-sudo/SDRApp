@@ -35,6 +35,14 @@ internal fun paletteColor(name: String, v: Float): Int {
 
 internal val PALETTE_NAMES = arrayOf("classic", "green", "blue", "mono", "fire")
 
+internal val PALETTE_LABELS = mapOf(
+    "classic" to "Классическая",
+    "green" to "Зелёная",
+    "blue" to "Синяя",
+    "mono" to "Моно",
+    "fire" to "Огонь"
+)
+
 private fun ramp(x: Float, stops: IntArray): Int {
     if (stops.size == 1) return stops[0]
     val scaled = x * (stops.size - 1)

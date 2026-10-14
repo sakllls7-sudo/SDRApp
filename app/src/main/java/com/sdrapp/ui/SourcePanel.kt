@@ -21,19 +21,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 enum class Band(val displayName: String, val freqStart: Double, val freqEnd: Double, val icon: ImageVector) {
-    AIRBAND("Airband", 108_000_000.0, 137_000_000.0, Icons.Default.Flight),
-    VHF("VHF", 137_000_000.0, 174_000_000.0, Icons.Default.Waves),
-    UHF("UHF", 400_000_000.0, 512_000_000.0, Icons.Default.Router),
-    FM_BROADCAST("FM Broadcast", 87_500_000.0, 108_000_000.0, Icons.Default.Radio),
-    AM_BROADCAST("AM Broadcast", 530_000.0, 1_700_000.0, Icons.Default.Radio),
-    SHORTWAVE("Shortwave", 2_300_000.0, 30_000_000.0, Icons.Default.Public),
-    CB("CB Radio", 26_965_000.0, 27_405_000.0, Icons.Default.Chat),
+    AIRBAND("Авиадиапазон", 108_000_000.0, 137_000_000.0, Icons.Default.Flight),
+    VHF("УКВ (VHF)", 137_000_000.0, 174_000_000.0, Icons.Default.Waves),
+    UHF("ДМВ (UHF)", 400_000_000.0, 512_000_000.0, Icons.Default.Router),
+    FM_BROADCAST("FM-радио", 87_500_000.0, 108_000_000.0, Icons.Default.Radio),
+    AM_BROADCAST("AM-радио", 530_000.0, 1_700_000.0, Icons.Default.Radio),
+    SHORTWAVE("Короткие волны", 2_300_000.0, 30_000_000.0, Icons.Default.Public),
+    CB("CB-радио", 26_965_000.0, 27_405_000.0, Icons.Default.Chat),
     ADSB("ADS-B", 1_090_000_000.0, 1_090_000_000.0, Icons.Default.FlightTakeoff),
     AIS("AIS", 161_975_000.0, 162_025_000.0, Icons.Default.DirectionsBoat),
-    WEATHER("Weather Sat", 137_000_000.0, 138_000_000.0, Icons.Default.Cloud),
+    WEATHER("Метеоспутник", 137_000_000.0, 138_000_000.0, Icons.Default.Cloud),
     GSM("GSM", 900_000_000.0, 960_000_000.0, Icons.Default.PhoneAndroid),
     LTE("LTE", 700_000_000.0, 2_700_000_000.0, Icons.Default.SignalCellular4Bar),
-    AIRBAND_RX("Airband RX", 108_000_000.0, 137_000_000.0, Icons.Default.FlightLand)
+    AIRBAND_RX("Авиадиапазон RX", 108_000_000.0, 137_000_000.0, Icons.Default.FlightLand)
 }
 
 @Composable
@@ -52,7 +52,7 @@ fun SourcePanel(
             .padding(8.dp)
     ) {
         Text(
-            "SOURCE",
+            "ИСТОЧНИК",
             color = Color(0xFF88AAFF),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -83,7 +83,7 @@ fun SourcePanel(
                     )
                 ) {
                     Text(
-                        if (isConnected) "Disconnect" else "Connect",
+                        if (isConnected) "Отключить" else "Подключить",
                         fontSize = 11.sp,
                         color = Color.White
                     )
@@ -93,7 +93,7 @@ fun SourcePanel(
 
         Spacer(Modifier.height(8.dp))
 
-        Text("BANDS", color = Color(0xFF88AAFF), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Text("ДИАПАЗОНЫ", color = Color(0xFF88AAFF), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
 
         Spacer(Modifier.height(4.dp))
 
@@ -124,7 +124,7 @@ fun SourcePanel(
             )
             Spacer(Modifier.width(4.dp))
             Text(
-                if (isConnected) "Connected" else "Disconnected",
+                if (isConnected) "Подключено" else "Отключено",
                 color = if (isConnected) SpectrumGreen else Color.Gray,
                 fontSize = 11.sp
             )

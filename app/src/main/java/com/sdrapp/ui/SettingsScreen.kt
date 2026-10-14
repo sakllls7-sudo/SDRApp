@@ -45,19 +45,19 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "SETTINGS",
+                "НАСТРОЙКИ",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.width(12.dp))
-            Text("SDR++ style", color = LabelGrey, fontSize = 11.sp)
+            Text("в стиле SDR++", color = LabelGrey, fontSize = 11.sp)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { controller.resetSettings() }) {
-                Text("RESET", color = Color(0xFFCC6666), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("СБРОС", color = Color(0xFFCC6666), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, "Close", tint = Color.White)
+                Icon(Icons.Default.Close, "Закрыть", tint = Color.White)
             }
         }
 
@@ -73,10 +73,10 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(end = 4.dp)
             ) {
-                Section("SOURCE / HARDWARE")
+                Section("ИСТОЧНИК / ОБОРУДОВАНИЕ")
 
                 ChoiceRow(
-                    "Sample rate",
+                    "Частота дискретизации",
                     listOf(
                         250_000 to "250k", 1_024_000 to "1.02M", 1_200_000 to "1.2M",
                         1_536_000 to "1.53M", 2_048_000 to "2.04M", 2_400_000 to "2.4M",
@@ -85,55 +85,55 @@ fun SettingsScreen(
                     state.sampleRate
                 ) { controller.setSampleRate(it) }
 
-                IntSliderRow("PPM correction", state.ppmCorrection, -200, 200, 400) {
+                IntSliderRow("Коррекция PPM", state.ppmCorrection, -200, 200, 400) {
                     controller.setPpmCorrection(it)
                 }
 
-                SwitchRow("RTL AGC (sampler)", state.rtlAgc) { controller.setRtlAgc(it) }
-                SwitchRow("Tuner AGC", state.agcEnabled) { controller.setAgc(it) }
+                SwitchRow("АРУ RTL (sampler)", state.rtlAgc) { controller.setRtlAgc(it) }
+                SwitchRow("АРУ тюнера", state.agcEnabled) { controller.setAgc(it) }
 
                 ChoiceRow(
-                    "Direct sampling (HF)",
-                    listOf(0 to "Off", 1 to "I-ADC", 2 to "Q-ADC"),
+                    "Прямая дискретизация (КВ)",
+                    listOf(0 to "Выкл", 1 to "I-ADC", 2 to "Q-ADC"),
                     state.directSampling
                 ) { controller.setDirectSampling(it) }
 
-                SwitchRow("Bias-T (needs v3+ dongle)", state.biasTee) { controller.setBiasTee(it) }
-                SwitchRow("Offset tuning (E4000 only)", state.offsetTuning) { controller.setOffsetTuning(it) }
+                SwitchRow("Питание Bias-T (нужен донгл v3+)", state.biasTee) { controller.setBiasTee(it) }
+                SwitchRow("Смещённая настройка (только E4000)", state.offsetTuning) { controller.setOffsetTuning(it) }
 
-                Section("DEMODULATION")
+                Section("ДЕМОДУЛЯЦИЯ")
 
-                SwitchRow("Squelch", state.squelchEnabled) {
+                SwitchRow("Шумоподавитель (squelch)", state.squelchEnabled) {
                     controller.setSquelch(it, state.squelchDb)
                 }
                 SliderRow(
-                    "Squelch level", state.squelchDb, -120f, 0f,
-                    steps = 0, valueText = String.format("%.0f dB", state.squelchDb)
+                    "Порог шумоподавителя", state.squelchDb, -120f, 0f,
+                    steps = 0, valueText = String.format("%.0f дБ", state.squelchDb)
                 ) { controller.setSquelch(state.squelchEnabled, it) }
 
                 ChoiceRow(
-                    "De-emphasis (WFM)",
-                    listOf(0 to "Off", 50 to "50 us", 75 to "75 us"),
+                    "Де-эмфазис (WFM)",
+                    listOf(0 to "Выкл", 50 to "50 мкс", 75 to "75 мкс"),
                     state.deemphasisUs
                 ) { controller.setDeemphasis(it) }
 
-                SwitchRow("Noise reduction", state.noiseReduction) { controller.setNoiseReduction(it) }
+                SwitchRow("Подавление шума", state.noiseReduction) { controller.setNoiseReduction(it) }
 
-                Section("AUDIO")
+                Section("ЗВУК")
                 SliderRow(
-                    "Volume", state.audioVolume, 0f, 100f,
+                    "Громкость", state.audioVolume, 0f, 100f,
                     valueText = "${state.audioVolume.roundToInt()}%"
                 ) { controller.setAudioVolume(it) }
 
-                Section("FFT / DISPLAY")
+                Section("FFT / ЭКРАН")
                 ChoiceRow(
-                    "FFT size",
+                    "Размер FFT",
                     listOf(1024 to "1k", 2048 to "2k", 4096 to "4k", 8192 to "8k", 16384 to "16k", 32768 to "32k"),
                     state.fftSize
                 ) { controller.setDisplay(fftSize = it) }
                 ChoiceRow(
-                    "FFT window",
-                    listOf("rectangular" to "Rect", "hann" to "Hann", "blackman" to "Blackman", "nuttall" to "Nuttall"),
+                    "Окно FFT",
+                    listOf("rectangular" to "Прям.", "hann" to "Ханн", "blackman" to "Блэкман", "nuttall" to "Наттолл"),
                     state.fftWindow
                 ) { controller.setDisplay(fftWindow = it) }
             }
@@ -145,39 +145,39 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(start = 8.dp)
             ) {
-                IntSliderRow("FFT rate", state.fftRate, 5, 60, 55) {
+                IntSliderRow("Частота FFT", state.fftRate, 5, 60, 55) {
                     controller.setDisplay(fftRate = it)
                 }
-                IntSliderRow("Waterfall speed (ms)", state.waterfallSpeed, 20, 200, 180) {
+                IntSliderRow("Скорость водопада (мс)", state.waterfallSpeed, 20, 200, 180) {
                     controller.setDisplay(waterfallSpeed = it)
                 }
-                IntSliderRow("Spectrum / waterfall split", state.splitRatio.roundToInt(), 20, 80, 60) {
+                IntSliderRow("Деление спектр / водопад", state.splitRatio.roundToInt(), 20, 80, 60) {
                     controller.setDisplay(splitRatio = it.toFloat())
                 }
-                IntSliderRow("Averaging", state.averaging, 0, 100, 100) {
+                IntSliderRow("Усреднение", state.averaging, 0, 100, 100) {
                     controller.setDisplay(averaging = it)
                 }
                 SliderRow(
-                    "dB max", state.dbMax, -60f, 0f,
-                    valueText = "${state.dbMax.roundToInt()} dB"
+                    "дБ макс", state.dbMax, -60f, 0f,
+                    valueText = "${state.dbMax.roundToInt()} дБ"
                 ) { controller.setDisplay(dbMax = it) }
                 SliderRow(
-                    "dB min", state.dbMin, -140f, -40f,
-                    valueText = "${state.dbMin.roundToInt()} dB"
+                    "дБ мин", state.dbMin, -140f, -40f,
+                    valueText = "${state.dbMin.roundToInt()} дБ"
                 ) { controller.setDisplay(dbMin = it) }
 
                 ChoiceRow(
-                    "Waterfall palette",
-                    PALETTE_NAMES.map { it to it.replaceFirstChar { c -> c.uppercase() } },
+                    "Палитра водопада",
+                    PALETTE_NAMES.map { it to PALETTE_LABELS.getValue(it) },
                     state.waterfallPalette
                 ) { controller.setDisplay(waterfallPalette = it) }
 
-                Section("TUNING")
-                SwitchRow("Snap to step", state.snapToStep) {
+                Section("НАСТРОЙКА")
+                SwitchRow("Привязка к шагу", state.snapToStep) {
                     controller.setTuning(it, state.stepHz)
                 }
                 ChoiceRow(
-                    "Step size",
+                    "Шаг настройки",
                     listOf(
                         1_000 to "1k", 5_000 to "5k", 6_250 to "6.25k", 12_500 to "12.5k",
                         25_000 to "25k", 50_000 to "50k", 100_000 to "100k"

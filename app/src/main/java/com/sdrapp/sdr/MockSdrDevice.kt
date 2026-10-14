@@ -10,7 +10,7 @@ import kotlin.math.sin
  */
 class MockSdrDevice : SdrDevice {
 
-    override val name: String get() = "Mock SDR"
+    override val name: String get() = "Симулятор"
     override val tunerName: String get() = "Simulated"
 
     @Volatile

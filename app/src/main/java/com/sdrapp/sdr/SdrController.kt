@@ -11,7 +11,7 @@ import kotlin.math.sqrt
 data class SdrState(
     val connected: Boolean = false,
     val playing: Boolean = false,
-    val deviceName: String = "No device",
+    val deviceName: String = "Нет устройства",
     val frequency: Double = 100_000_000.0,
     val demodType: DemodType = DemodType.WFM,
     val gainPercent: Float = 50f,
@@ -21,7 +21,7 @@ data class SdrState(
     val agcEnabled: Boolean = true,
     val signalDbm: Float = -120f,
     val recording: Boolean = false,
-    val status: String = "Idle",
+    val status: String = "Ожидание",
 
     // Hardware
     val ppmCorrection: Int = 0,
@@ -115,14 +115,14 @@ class SdrController(
         closeDevice()
         val ok = dev.open()
         if (!ok) {
-            _state.value = _state.value.copy(status = "Failed to open device")
+            _state.value = _state.value.copy(status = "Не удалось открыть устройство")
             return false
         }
         device = dev
         _state.value = _state.value.copy(
             connected = true,
             deviceName = dev.name,
-            status = "Connected"
+            status = "Подключено"
         )
         applyAll()
         return true
@@ -134,8 +134,8 @@ class SdrController(
         device = null
         _state.value = _state.value.copy(
             connected = false,
-            deviceName = "No device",
-            status = "Disconnected"
+            deviceName = "Нет устройства",
+            status = "Отключено"
         )
     }
 
@@ -182,7 +182,7 @@ class SdrController(
         analyzer.reset()
         audio.start()
         running = true
-        _state.value = _state.value.copy(playing = true, status = "Playing")
+        _state.value = _state.value.copy(playing = true, status = "Воспроизведение")
 
         thread = Thread({ readerLoop(dev) }, "SdrReader").apply {
             priority = Thread.NORM_PRIORITY
@@ -201,7 +201,7 @@ class SdrController(
         thread = null
         audio.stop()
         if (recorder.isRecording) stopRecording()
-        _state.value = _state.value.copy(playing = false, status = "Stopped")
+        _state.value = _state.value.copy(playing = false, status = "Остановлено")
     }
 
     private fun readerLoop(dev: SdrDevice) {
@@ -399,12 +399,12 @@ class SdrController(
     private fun startRecording() {
         val st = _state.value
         val f = recorder.start(st.frequency.toLong(), st.sampleRate)
-        _state.value = _state.value.copy(recording = true, status = "Recording: ${f?.name ?: ""}")
+        _state.value = _state.value.copy(recording = true, status = "Запись: ${f?.name ?: ""}")
     }
 
     private fun stopRecording() {
         recorder.stop()
-        _state.value = _state.value.copy(recording = false, status = "Recording saved")
+        _state.value = _state.value.copy(recording = false, status = "Запись сохранена")
     }
 
     // ----- settings -------------------------------------------------------
