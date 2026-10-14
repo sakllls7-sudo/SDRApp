@@ -28,7 +28,7 @@ class AudioEngine(private val sampleRate: Int = 48_000) {
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        val bufSize = if (minBuf > 0) minBuf * 4 else sampleRate / 2 * 4
+        val bufSize = if (minBuf > 0) minBuf * 8 else sampleRate / 2 * 8
 
         val t = AudioTrack.Builder()
             .setAudioAttributes(
@@ -73,6 +73,9 @@ class AudioEngine(private val sampleRate: Int = 48_000) {
             val s = (samples[n] * v * 32767f).toInt().coerceIn(-32768, 32767)
             shortBuf[n] = s.toShort()
         }
-        t.write(shortBuf, 0, count)
+        val written = t.write(shortBuf, 0, count)
+        if (written < 0) {
+            android.util.Log.e("AudioEngine", "write error: $written")
+        }
     }
 }
