@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(sdrapp_core SHARED
     jni_bridge.cpp
     signal_path/signal_path.cpp
+    signal_path/source.cpp
     signal_path/demod.cpp
     signal_path/sink.cpp
 )
