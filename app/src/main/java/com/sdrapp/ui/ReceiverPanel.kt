@@ -25,7 +25,7 @@ enum class DemodMode(val displayName: String, val icon: ImageVector) {
     AM("AM", Icons.Default.Waves),
     USB("USB", Icons.Default.ArrowUpward),
     LSB("LSB", Icons.Default.ArrowDownward),
-    CW("CW", Icons.Default.Morse),
+    CW("CW", Icons.Default.Mic),
     RAW("RAW", Icons.Default.GraphicEq)
 }
 
@@ -94,7 +94,7 @@ fun ReceiverPanel(
 
         Spacer(Modifier.height(4.dp))
 
-        Text("BANDWIDTH: ${formatFrequency(bandwidth)}", color = Color.White, fontSize = 11.sp)
+        Text("BANDWIDTH: ${formatFrequency(bandwidth.toDouble())}", color = Color.White, fontSize = 11.sp)
         Slider(
             value = bandwidth,
             onValueChange = onBandwidthChange,

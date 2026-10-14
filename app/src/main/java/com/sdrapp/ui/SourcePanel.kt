@@ -27,7 +27,7 @@ enum class Band(val displayName: String, val freqStart: Double, val freqEnd: Dou
     FM_BROADCAST("FM Broadcast", 87_500_000.0, 108_000_000.0, Icons.Default.Radio),
     AM_BROADCAST("AM Broadcast", 530_000.0, 1_700_000.0, Icons.Default.Radio),
     SHORTWAVE("Shortwave", 2_300_000.0, 30_000_000.0, Icons.Default.Public),
-    CB("CB Radio", 26_965_000.0, 27_405_000.0, Icons.Default.Talk),
+    CB("CB Radio", 26_965_000.0, 27_405_000.0, Icons.Default.Chat),
     ADSB("ADS-B", 1_090_000_000.0, 1_090_000_000.0, Icons.Default.FlightTakeoff),
     AIS("AIS", 161_975_000.0, 162_025_000.0, Icons.Default.DirectionsBoat),
     WEATHER("Weather Sat", 137_000_000.0, 138_000_000.0, Icons.Default.Cloud),
@@ -64,7 +64,7 @@ fun SourcePanel(
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Antenna, null, tint = SpectrumGreen, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.SettingsInputAntenna, null, tint = SpectrumGreen, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("RTL-SDR", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }

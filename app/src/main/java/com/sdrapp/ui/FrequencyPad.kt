@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,9 +33,20 @@ fun FrequencyPad(
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        freqStr.forEachIndexed { index, char ->
-            val digitValue = char.digitToIntOrNull()
+        for (index in freqStr.indices) {
+            val c = freqStr[index]
+            val digitValue = c.digitToIntOrNull()
             val multiplier = 11 - index
+
+            if (index % 3 == 2 && index != 11) {
+                Text(
+                    text = ".",
+                    color = Color.Gray,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
 
             Box(
                 modifier = Modifier
@@ -50,10 +62,8 @@ fun FrequencyPad(
                     .padding(horizontal = 1.dp)
             ) {
                 Text(
-                    text = if (index == 3) "." else char.toString(),
-                    color = if (index == 3) Color.Gray else {
-                        if (index < 3) Color(0xFF88AAFF) else Color.White
-                    },
+                    text = c.toString(),
+                    color = if (index < 3) Color(0xFF88AAFF) else Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -62,7 +72,7 @@ fun FrequencyPad(
 
             if (digitValue != null && editingDigit == index) {
                 val step = Math.pow(10.0, multiplier.toDouble()).toLong()
-                Row {
+                Column {
                     IconButton(
                         onClick = {
                             onFrequencyChange(frequency + step)
@@ -70,7 +80,7 @@ fun FrequencyPad(
                         },
                         modifier = Modifier.size(16.dp)
                     ) {
-                        Text("▲", color = SpectrumGreen, fontSize = 10.sp)
+                        Text("+", color = SpectrumGreen, fontSize = 12.sp)
                     }
                     IconButton(
                         onClick = {
@@ -79,7 +89,7 @@ fun FrequencyPad(
                         },
                         modifier = Modifier.size(16.dp)
                     ) {
-                        Text("▼", color = Color.Red, fontSize = 10.sp)
+                        Text("-", color = Color.Red, fontSize = 12.sp)
                     }
                 }
             }
