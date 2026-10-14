@@ -58,6 +58,9 @@ class AudioEngine(private val sampleRate: Int = 48_000) {
 
         running.set(true)
         sinkThread = Thread({
+            // Pre-fill buffer with silence to prevent initial underrun
+            val silence = ShortArray(bufSize / 2)
+            t.write(silence, 0, silence.size)
             while (running.get()) {
                 try {
                     val samples = sink.take()
