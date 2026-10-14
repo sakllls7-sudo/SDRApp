@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.exp
 import kotlinx.coroutines.delay
 
 private class WaterfallState {
@@ -32,11 +31,12 @@ fun WaterfallView(
     frequency: Double,
     isPlaying: Boolean,
     spanHz: Double,
-    fftRate: Int = 20,
+    sampleRate: Int = 2_400_000,
     waterfallSpeed: Int = 60,
     palette: String = "classic",
     dbMin: Float = -120f,
     dbMax: Float = -20f,
+    spectrum: () -> FloatArray? = { null },
     onTune: (Double) -> Unit,
     onZoom: (Float) -> Unit
 ) {
@@ -47,6 +47,7 @@ fun WaterfallView(
     val spanState = rememberUpdatedState(spanHz)
     val tuneState = rememberUpdatedState(onTune)
     val zoomState = rememberUpdatedState(onZoom)
+    val spectrumState = rememberUpdatedState(spectrum)
 
     val lineDelay = waterfallSpeed.coerceIn(16, 300).toLong()
 
@@ -91,24 +92,33 @@ fun WaterfallView(
             val bmp = wf.bitmap!!
             val image = wf.image!!
 
-            if (isPlaying && f != wf.lastFrame) {
+            val bins = spectrumState.value()
+
+            if (isPlaying && f != wf.lastFrame && bins != null && bins.size > 1) {
                 wf.lastFrame = f
                 wf.rowIndex = if (wf.rowIndex <= 0) h - 1 else wf.rowIndex - 1
                 val row = IntArray(w)
+                val n = bins.size
+                val rate = sampleRate.toDouble().coerceAtLeast(1.0)
                 val f0 = frequency - spanHz / 2.0
                 val hzPerPx = spanHz / w
                 val dbLo = dbMin.coerceIn(-200f, 0f)
                 val dbHi = dbMax.coerceIn(-200f, 0f).let { if (it <= dbLo) dbLo + 1f else it }
                 for (x in 0 until w) {
-                    val freq = f0 + x * hzPerPx
-                    var intensity = 0.015f + ((x * 7 + f * 13) % 5) * 0.004f
-                    for (s in wfSignals) {
-                        val d = (freq - s[0]) / s[1]
-                        intensity += (s[2] * exp(-(d * d) * 3.0)).toFloat()
+                    val fA = f0 + x * hzPerPx
+                    val fB = fA + hzPerPx
+                    val iA = (((fA - frequency) / rate + 0.5) * n).toInt()
+                    val iB = (((fB - frequency) / rate + 0.5) * n).toInt()
+                    var db = dbLo
+                    if (iB > iA && iB - iA < 128) {
+                        for (b in iA..iB) {
+                            if (b in 0 until n && bins[b] > db) db = bins[b]
+                        }
+                    } else {
+                        val b = iA.coerceIn(0, n - 1)
+                        db = bins[b]
                     }
-                    // Map synthetic level (0..1) onto the dB range for contrast control.
-                    val dbLevel = dbLo + intensity.coerceIn(0f, 1f) * (dbHi - dbLo)
-                    val norm = ((dbLevel - dbLo) / (dbHi - dbLo)).coerceIn(0f, 1f)
+                    val norm = ((db - dbLo) / (dbHi - dbLo)).coerceIn(0f, 1f)
                     row[x] = paletteColor(palette, norm)
                 }
                 bmp.setPixels(row, 0, w, 0, wf.rowIndex, w, 1)
@@ -143,22 +153,14 @@ fun WaterfallView(
                 strokeWidth = 2f
             )
 
-            val labelStyle = TextStyle(color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
-            drawText(
-                textMeasurer,
-                "Time ->",
-                topLeft = Offset(4f, 4f),
-                style = labelStyle
-            )
+            if (bins == null || bins.size <= 1) {
+                drawText(
+                    textMeasurer,
+                    "No waterfall - press Play",
+                    topLeft = Offset(w * 0.28f, h * 0.45f),
+                    style = TextStyle(color = Color(0xFF668866), fontSize = 13.sp)
+                )
+            }
         }
     }
 }
-
-// {centerHz, bandwidthHz, amplitude}
-private val wfSignals = arrayOf(
-    doubleArrayOf(99_900_000.0, 60_000.0, 0.85),
-    doubleArrayOf(100_350_000.0, 120_000.0, 0.45),
-    doubleArrayOf(99_200_000.0, 40_000.0, 0.55),
-    doubleArrayOf(100_900_000.0, 80_000.0, 0.35)
-)
-

@@ -69,6 +69,9 @@ class SdrController(
     private val audio = AudioEngine()
     private val recorder = IqRecorder(context)
 
+    /** Publishes a real FFT magnitude spectrum for the spectrum/waterfall views. */
+    val analyzer = SpectrumAnalyzer()
+
     @Volatile private var demod: Demodulator? = null
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -146,6 +149,7 @@ class SdrController(
         dev.setDirectSampling(st.directSampling)
         dev.setCenterFrequency(st.frequency.toLong())
         dev.setGain(gainTenthDb(st))
+        analyzer.configure(st.fftSize, st.fftWindow, st.sampleRate, st.frequency)
     }
 
     private fun gainTenthDb(st: SdrState): Int {
@@ -173,6 +177,9 @@ class SdrController(
         val dev = device ?: return
         if (running) return
         rebuildDemod()
+        val st0 = _state.value
+        analyzer.configure(st0.fftSize, st0.fftWindow, st0.sampleRate, st0.frequency)
+        analyzer.reset()
         audio.start()
         running = true
         _state.value = _state.value.copy(playing = true, status = "Playing")
@@ -201,6 +208,7 @@ class SdrController(
         val buf = ByteArray(1 shl 18) // 256 KiB
         val audioOut = FloatArray(1 shl 15)
         var lastLevelUpdate = 0L
+        var lastFft = 0L
         while (running) {
             val n = dev.readSync(buf, 0, buf.size)
             if (n <= 0) {
@@ -209,11 +217,21 @@ class SdrController(
             }
             if (recorder.isRecording) recorder.write(buf, n)
 
-            val d = demod ?: continue
-            val count = d.process(buf, n, audioOut)
-            audio.write(audioOut, count)
+            val st = _state.value
+
+            val d = demod
+            if (d != null) {
+                val count = d.process(buf, n, audioOut)
+                audio.write(audioOut, count)
+            }
 
             val now = System.currentTimeMillis()
+            val fftInterval = (1000L / st.fftRate.coerceIn(1, 60)).coerceAtLeast(15L)
+            if (now - lastFft >= fftInterval) {
+                lastFft = now
+                analyzer.process(buf, n, st.averaging)
+            }
+
             if (now - lastLevelUpdate >= 200) {
                 lastLevelUpdate = now
                 val dbm = computeLevel(buf, n)
@@ -245,6 +263,7 @@ class SdrController(
     fun setFrequency(freq: Double) {
         _state.value = _state.value.copy(frequency = freq)
         device?.setCenterFrequency(freq.toLong())
+        analyzer.setCenter(freq)
         persist()
     }
 
@@ -269,6 +288,7 @@ class SdrController(
     fun setSampleRate(rate: Int) {
         _state.value = _state.value.copy(sampleRate = rate)
         device?.setSampleRate(rate)
+        analyzer.configure(_state.value.fftSize, _state.value.fftWindow, rate, _state.value.frequency)
         if (running) rebuildDemod()
         persist()
     }
@@ -355,6 +375,7 @@ class SdrController(
             splitRatio = splitRatio,
             waterfallSpeed = waterfallSpeed
         )
+        analyzer.configure(fftSize, fftWindow, _state.value.sampleRate, _state.value.frequency)
         persist()
     }
 

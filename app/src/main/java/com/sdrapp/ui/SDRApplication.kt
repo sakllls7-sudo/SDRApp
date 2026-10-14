@@ -43,6 +43,11 @@ fun SDRApplication(
         spanHz = (spanHz / scale).coerceIn(10_000.0, 20_000_000.0)
     }
 
+    fun spectrumBins(): FloatArray? {
+        val b = controller.analyzer.bins
+        return if (b.size > 1) b else null
+    }
+
     if (showSettings) {
         SettingsScreen(
             state = state,
@@ -104,11 +109,12 @@ fun SDRApplication(
                             frequency = state.frequency,
                             isPlaying = state.playing,
                             spanHz = spanHz,
+                            sampleRate = state.sampleRate,
                             fftRate = state.fftRate,
-                            averaging = state.averaging,
                             palette = state.waterfallPalette,
                             dbMin = state.dbMin,
                             dbMax = state.dbMax,
+                            spectrum = { spectrumBins() },
                             onTune = { tune(it) },
                             onZoom = { zoom(it) }
                         )
@@ -124,11 +130,12 @@ fun SDRApplication(
                             frequency = state.frequency,
                             isPlaying = state.playing,
                             spanHz = spanHz,
-                            fftRate = state.fftRate,
+                            sampleRate = state.sampleRate,
                             waterfallSpeed = state.waterfallSpeed,
                             palette = state.waterfallPalette,
                             dbMin = state.dbMin,
                             dbMax = state.dbMax,
+                            spectrum = { spectrumBins() },
                             onTune = { tune(it) },
                             onZoom = { zoom(it) }
                         )
