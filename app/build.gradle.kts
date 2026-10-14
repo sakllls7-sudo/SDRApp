@@ -9,10 +9,20 @@ android {
 
     defaultConfig {
         applicationId = "com.sdrapp"
-        minSdk = 26
+        minSdk = 27
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        }
+
+        externalNativeBuild {
+            cmake {
+                path = file("src/main/cpp/CMakeLists.txt")
+            }
+        }
     }
 
     buildTypes {
@@ -24,6 +34,12 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            version = "3.22.1"
+        }
     }
 
     composeOptions {
