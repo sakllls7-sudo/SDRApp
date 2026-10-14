@@ -20,7 +20,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                path = file("src/main/cpp/CMakeLists.txt")
+                arguments "-DANDROID_STL=c++_shared"
             }
         }
     }
@@ -39,6 +39,7 @@ android {
     externalNativeBuild {
         cmake {
             version = "3.22.1"
+            path = file("src/main/cpp/CMakeLists.txt")
         }
     }
 
