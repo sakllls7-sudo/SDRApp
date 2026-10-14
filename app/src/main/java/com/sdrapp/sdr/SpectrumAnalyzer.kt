@@ -23,6 +23,8 @@ class SpectrumAnalyzer {
         private set
     @Volatile var lastSeq: Long = 0L
         private set
+    @Volatile var fftSize: Int = 1024
+        private set
 
     private var fft = Fft(1024)
     private var window = DoubleArray(1024)
