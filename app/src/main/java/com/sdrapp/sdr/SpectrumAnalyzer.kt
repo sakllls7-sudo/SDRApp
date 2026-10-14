@@ -111,6 +111,11 @@ class SpectrumAnalyzer {
     }
 
     /** Returns a normalised-to-zero spectrum (max=0). Used for display. */
+        lastSeq = 0L
+    }
+}
+
+    /** Returns a normalised-to-zero spectrum (max=0). Used for display. */
     @Synchronized
     fun processNormalised(bytes: ByteArray, byteCount: Int, averaging: Int): FloatArray {
         process(bytes, byteCount, averaging)
@@ -121,12 +126,12 @@ class SpectrumAnalyzer {
         for (i in out.indices) out[i] = (out[i] - m).coerceIn(-120f, 0f)
         return out
     }
-        lastSeq = 0L
-    }
 
     fun setCenter(center: Double) {
         centerHz = center
     }
+
+    @Synchronized
 
     private fun makeWindow(name: String, n: Int): DoubleArray {
         val w = DoubleArray(n)
