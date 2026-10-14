@@ -2,7 +2,6 @@ package com.sdrapp.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -12,7 +11,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -73,13 +71,11 @@ fun SpectrumView(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        val hzPerPx = spanState.value / size.width
-                        tuneState.value(-pan.x * hzPerPx)
-                        zoomState.value(zoom)
-                    }
-                }
+                .tunePanZoom(
+                    span = { spanState.value },
+                    onTune = { tuneState.value(it) },
+                    onZoom = { zoomState.value(it) }
+                )
         ) {
             val w = size.width
             val h = size.height
