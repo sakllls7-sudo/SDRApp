@@ -13,7 +13,7 @@ class AudioEngine(private val sampleRate: Int = 48_000) {
     private var shortBuf = ShortArray(0)
     private val running = AtomicBoolean(false)
     private var sinkThread: Thread? = null
-    private val sink = ArrayBlockingQueue<FloatArray>(128)
+    private val sink = ArrayBlockingQueue<FloatArray>(4)
 
     @Volatile
     private var volume = 0.8f
