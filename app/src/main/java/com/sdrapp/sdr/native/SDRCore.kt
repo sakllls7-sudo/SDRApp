@@ -51,4 +51,5 @@ class SDRCore {
 
     external fun nativeListDevices(): Array<String>
     external fun nativeCleanup()
+    external fun nativePushIQ(iqData: ByteArray, len: Int)
 }

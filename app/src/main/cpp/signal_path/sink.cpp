@@ -61,13 +61,12 @@ public:
             return false;
         }
         running_.store(true);
-        writer_thread_ = std::thread(&AAudioSink::writer_loop, this);
+        LOGI("AAudio sink started");
         return true;
     }
 
     void stop() override {
         running_.store(false);
-        if (writer_thread_.joinable()) writer_thread_.join();
         if (stream_) AAudioStream_requestStop(stream_);
     }
 
@@ -81,7 +80,6 @@ public:
 
     void push(const float* data, size_t count) override {
         if (!running_.load() || count == 0) return;
-        // Non-blocking write with timeout
         aaudio_result_t result = AAudioStream_write(stream_, data, count, 100000000); // 100ms timeout
         if (result < 0) {
             LOGE("AAudioStream_write error: %d", result);
@@ -90,22 +88,16 @@ public:
 
     size_t available() const override {
         if (!stream_) return 0;
-        return AAudioStream_getBufferCapacity(stream_) - AAudioStream_getFramesAvailable(stream_);
+        int32_t capacity = AAudioStream_getBufferCapacityInFrames(stream_);
+        int32_t available = AAudioStream_getFramesAvailable(stream_);
+        return static_cast<size_t>(capacity - available);
     }
 
 private:
-    void writer_loop() {
-        // This is a stub - actual writing happens via push() from DSP thread
-        while (running_.load()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-
     AAudioStream* stream_ = nullptr;
     SinkConfig cfg_;
     std::atomic<bool> running_{false};
     float volume_ = 0.8f;
-    std::thread writer_thread_;
 };
 
 std::unique_ptr<ISink> SinkManager::create_audio_sink() {

@@ -164,14 +164,19 @@ Java_com_sdrapp_sdr_native_SDRCore_nativeIsRecording(JNIEnv* env, jobject thiz) 
 
 JNIEXPORT jobjectArray JNICALL
 Java_com_sdrapp_sdr_native_SDRCore_nativeListDevices(JNIEnv* env, jobject thiz) {
-    auto devices = SourceManager::instance().list_rtl_devices();
+    // Return empty array - device listing done in Java
     jclass stringClass = env->FindClass("java/lang/String");
-    jobjectArray result = env->NewObjectArray(devices.size(), stringClass, nullptr);
-    for (size_t i = 0; i < devices.size(); ++i) {
-        jstring jstr = env->NewStringUTF(devices[i].c_str());
-        env->SetObjectArrayElement(result, i, jstr);
+    return env->NewObjectArray(0, stringClass, nullptr);
+}
+
+JNIEXPORT void JNICALL
+Java_com_sdrapp_sdr_native_SDRCore_nativePushIQ(JNIEnv* env, jobject thiz, jbyteArray iq_data, jint len) {
+    if (!g_signal_path) return;
+    jbyte* data = env->GetByteArrayElements(iq_data, nullptr);
+    if (data) {
+        g_signal_path->push_iq(reinterpret_cast<const int8_t*>(data), len);
+        env->ReleaseByteArrayElements(iq_data, data, JNI_ABORT);
     }
-    return result;
 }
 
 JNIEXPORT void JNICALL

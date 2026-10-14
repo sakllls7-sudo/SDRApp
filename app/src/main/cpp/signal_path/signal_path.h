@@ -76,6 +76,9 @@ public:
     void start_recording(const char* path);
     void stop_recording();
 
+    // Push IQ data from Java
+    void push_iq(const int8_t* data, size_t len);
+
 private:
     void reader_thread();
     void dsp_thread();

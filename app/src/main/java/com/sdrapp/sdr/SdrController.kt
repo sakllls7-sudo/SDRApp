@@ -2,6 +2,7 @@ package com.sdrapp.sdr
 
 import android.content.Context
 import android.util.Log
+import com.sdrapp.sdr.native.SDRCore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,13 +67,11 @@ class SdrController(
     val state: StateFlow<SdrState> = _state.asStateFlow()
 
     private var device: SdrDevice? = null
-    private val audio = AudioEngine()
     private val recorder = IqRecorder(context)
 
     /** Publishes a real FFT magnitude spectrum for the spectrum/waterfall views. */
     val analyzer = SpectrumAnalyzer()
 
-    @Volatile private var demod: Demodulator? = null
     @Volatile private var running = false
     private var thread: Thread? = null
 
@@ -176,13 +175,39 @@ class SdrController(
     fun startPlayback() {
         val dev = device ?: return
         if (running) return
-        rebuildDemod()
+
         val st0 = _state.value
         analyzer.configure(st0.fftSize, st0.fftWindow, st0.sampleRate, st0.frequency)
         analyzer.reset()
+
+        // Configure native signal path
+        SDRCore.nativeConfigure(
+            null, // device serial (use first available)
+            st0.sampleRate,
+            st0.frequency.toLong(),
+            (st0.gainPercent * 4.96).toInt(), // convert 0-100% to dB*10
+            st0.ppmCorrection,
+            st0.rtlAgc,
+            st0.directSampling,
+            st0.biasTee,
+            st0.demodType.ordinal,
+            st0.bandwidthHz,
+            st0.squelchEnabled,
+            st0.squelchDb,
+            st0.deemphasisUs,
+            st0.noiseReduction,
+            st0.audioVolume
+        )
+
         dev.startStreaming()
-        audio.start()
         running = true
+        val ok = SDRCore.nativeStart()
+        if (!ok) {
+            running = false
+            _state.value = _state.value.copy(playing = false, status = "Ошибка запуска")
+            return
+        }
+
         _state.value = _state.value.copy(playing = true, status = "Воспроизведение")
 
         thread = Thread({ readerLoop(dev) }, "SdrReader").apply {
@@ -200,14 +225,13 @@ class SdrController(
             }
         }
         thread = null
-        audio.stop()
+        SDRCore.nativeStop()
         if (recorder.isRecording) stopRecording()
         _state.value = _state.value.copy(playing = false, status = "Остановлено")
     }
 
     private fun readerLoop(dev: SdrDevice) {
         val buf = ByteArray(1 shl 18) // 256 KiB
-        val audioOut = FloatArray(1 shl 15)
         var lastLevelUpdate = 0L
         var lastFft = 0L
         while (running) {
@@ -218,13 +242,23 @@ class SdrController(
             }
             if (recorder.isRecording) recorder.write(buf, n)
 
-            val st = _state.value
+            // Push IQ to native signal path for DSP + audio
+            SDRCore.nativePushIQ(buf, n)
 
-            val d = demod
-            if (d != null) {
-                val count = d.process(buf, n, audioOut)
-                audio.write(audioOut, count)
+            // Spectrum analyzer still runs in Java for UI
+            val fftInterval = (1000L / _state.value.fftRate.coerceIn(1, 60)).coerceAtLeast(15L)
+            if (System.currentTimeMillis() - lastFft >= fftInterval) {
+                lastFft = System.currentTimeMillis()
+                analyzer.process(buf, n, _state.value.averaging)
             }
+
+            if (System.currentTimeMillis() - lastLevelUpdate >= 200) {
+                lastLevelUpdate = System.currentTimeMillis()
+                val dbm = computeLevel(buf, n)
+                _state.value = _state.value.copy(signalDbm = dbm)
+            }
+        }
+    }
 
             val now = System.currentTimeMillis()
             val fftInterval = (1000L / st.fftRate.coerceIn(1, 60)).coerceAtLeast(15L)

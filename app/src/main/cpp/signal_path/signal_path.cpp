@@ -33,7 +33,7 @@ bool SignalPath::configure(const SignalPathConfig& config) {
 
 bool SignalPath::apply_config() {
     if (!source_) {
-        source_ = SourceManager::instance().create_rtl_source();
+        source_ = SourceManager::instance().create_java_source();
     }
     if (!demod_) {
         demod_ = std::make_unique<Demodulator>();
@@ -43,7 +43,6 @@ bool SignalPath::apply_config() {
     }
 
     SourceConfig scfg;
-    scfg.device_serial = config_.device_serial;
     scfg.sample_rate = config_.sample_rate;
     scfg.center_freq = config_.center_freq;
     scfg.gain = config_.gain;
@@ -93,9 +92,9 @@ bool SignalPath::start() {
 
     running_.store(true);
 
-    // Start source with IQ callback
-    source_->set_iq_callback([this](const unsigned char* buf, uint32_t len) {
-        iq_packer_.push(reinterpret_cast<const int8_t*>(buf), len);
+    // Set up source callback to push IQ data to ring buffer
+    source_->set_iq_callback([this](const int8_t* buf, size_t len) {
+        iq_packer_.push(buf, len);
         total_iq_bytes_.fetch_add(len, std::memory_order_relaxed);
     });
 
@@ -145,7 +144,7 @@ void SignalPath::stop() {
 void SignalPath::dsp_thread() {
     const size_t chunk_size = 4096;
     std::vector<int8_t> iq_chunk(chunk_size);
-    std::vector<float> audio_chunk(4096); // max output
+    std::vector<float> audio_chunk(4096);
 
     while (running_.load()) {
         size_t avail = iq_ring_.size();
@@ -164,7 +163,6 @@ void SignalPath::dsp_thread() {
         );
 
         if (out_count > 0) {
-            // Record raw IQ if recording
             if (recording_.load()) {
                 std::lock_guard<std::mutex> lock(record_mutex_);
                 if (record_file_) {
@@ -172,7 +170,6 @@ void SignalPath::dsp_thread() {
                 }
             }
 
-            // Push to audio ring
             audio_packer_.push(audio_chunk.data(), out_count);
             total_audio_samples_.fetch_add(out_count, std::memory_order_relaxed);
         }
@@ -207,8 +204,16 @@ void SignalPath::set_sample_rate(uint32_t hz) {
     config_.sample_rate = hz;
     if (source_) source_->set_sample_rate(hz);
     if (demod_) {
-        DemodConfig dcfg = demod_->get_mode(); // need to get current config
-        // Actually need to store demod config properly
+        DemodConfig dcfg;
+        dcfg.mode = config_.mode;
+        dcfg.input_rate = hz;
+        dcfg.output_rate = 48000;
+        dcfg.bandwidth = config_.bandwidth;
+        dcfg.squelch = config_.squelch;
+        dcfg.squelch_db = config_.squelch_db;
+        dcfg.deemphasis_us = config_.deemphasis_us;
+        dcfg.noise_reduction = config_.noise_reduction;
+        demod_->configure(dcfg);
     }
 }
 
@@ -276,5 +281,12 @@ void SignalPath::stop_recording() {
         record_file_ = nullptr;
         recording_.store(false);
         LOGI("Recording stopped");
+    }
+}
+
+void SignalPath::push_iq(const int8_t* data, size_t len) {
+    if (running_.load()) {
+        iq_packer_.push(data, len);
+        total_iq_bytes_.fetch_add(len, std::memory_order_relaxed);
     }
 }

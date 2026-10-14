@@ -6,14 +6,12 @@
 #include <memory>
 #include <functional>
 #include <atomic>
-#include <thread>
 #include "buffer/buffer.h"
 
 struct SourceConfig {
-    std::string device_serial;
     uint32_t sample_rate = 2400000;
     uint64_t center_freq = 100000000;
-    int gain = -1; // -1 = auto
+    int gain = -1;
     int ppm = 0;
     bool rtl_agc = false;
     int direct_sampling = 0;
@@ -29,7 +27,6 @@ public:
     virtual void stop() = 0;
     virtual bool is_running() const = 0;
     virtual std::string get_name() const = 0;
-    virtual std::vector<std::string> list_devices() = 0;
     virtual uint32_t get_sample_rate() const = 0;
     virtual uint64_t get_center_freq() const = 0;
     virtual bool set_center_freq(uint64_t hz) = 0;
@@ -38,6 +35,8 @@ public:
     virtual bool set_agc(bool enable) = 0;
     virtual bool set_direct_sampling(int mode) = 0;
     virtual bool set_bias_tee(bool enable) = 0;
+    // Called by Java to push IQ data
+    virtual void push_iq(const int8_t* data, size_t len) = 0;
 };
 
 class SourceManager {
@@ -47,8 +46,7 @@ public:
         return inst;
     }
 
-    std::unique_ptr<ISource> create_rtl_source();
-    std::vector<std::string> list_rtl_devices();
+    std::unique_ptr<ISource> create_java_source();
 
 private:
     SourceManager() = default;
