@@ -64,7 +64,10 @@ class Demodulator(
     private var y1 = 0.0
     private var y2 = 0.0
 
-    // DC-blocking one-pole high-pass
+    // Pre-DC-blocker: remove instantaneous mean (mean subtraction on the boxcar window)
+    // to suppress the huge DC offset produced by the R820T low-IF at higher gain.
+    private var iDC = 0.0
+    private var qDC = 0.0
     private var hpPrevX = 0.0
     private var hpPrevY = 0.0
     private val hpAlpha: Double
@@ -122,11 +125,18 @@ class Demodulator(
             val i = ((bytes[n * 2].toInt() and 0xff) - 127.5) / 127.5
             val q = ((bytes[n * 2 + 1].toInt() and 0xff) - 127.5) / 127.5
 
+            // Running-average DC removal (slower than the one-pole HP) to fight
+            // the strong low-IF DC spike from R820T.
+            iDC += (i - iDC) * 0.001
+            qDC += (q - qDC) * 0.001
+            val iR = i - iDC
+            val qR = q - qDC
+
             val s: Double = when (mode) {
-                DemodType.AM -> sqrt(i * i + q * q)
+                DemodType.AM -> sqrt(iR * iR + qR * qR)
 
                 DemodType.NFM, DemodType.WFM -> {
-                    val ph = atan2(q, i)
+                    val ph = atan2(qR, iR)
                     var d = ph - prevPhase
                     if (d > PI) d -= 2.0 * PI
                     if (d < -PI) d += 2.0 * PI
@@ -137,10 +147,10 @@ class Demodulator(
                 DemodType.USB, DemodType.LSB, DemodType.CW -> {
                     mixPhase += 2.0 * PI * shiftHz / inputRate
                     if (mixPhase > 2.0 * PI) mixPhase -= 2.0 * PI
-                    i * cos(mixPhase) + q * sin(mixPhase)
+                    iR * cos(mixPhase) + qR * sin(mixPhase)
                 }
 
-                DemodType.RAW -> i
+                DemodType.RAW -> iR
             }
 
             // biquad low-pass
