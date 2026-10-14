@@ -110,11 +110,17 @@ class SpectrumAnalyzer {
         lastSeq++
     }
 
+    /** Returns a normalised-to-zero spectrum (max=0). Used for display. */
     @Synchronized
-    fun reset() {
-        avgInit = false
-        bins = FloatArray(0)
-        seq = 0L
+    fun processNormalised(bytes: ByteArray, byteCount: Int, averaging: Int): FloatArray {
+        process(bytes, byteCount, averaging)
+        val b = bins
+        val m = b.maxOrNull() ?: 0f
+        if (m <= 0f) return b
+        val out = b.copyOf()
+        for (i in out.indices) out[i] = (out[i] - m).coerceIn(-120f, 0f)
+        return out
+    }
         lastSeq = 0L
     }
 
