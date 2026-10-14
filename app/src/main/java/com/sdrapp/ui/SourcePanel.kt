@@ -40,7 +40,10 @@ enum class Band(val displayName: String, val freqStart: Double, val freqEnd: Dou
 fun SourcePanel(
     modifier: Modifier = Modifier,
     selectedBand: Band,
-    onBandSelect: (Band) -> Unit
+    onBandSelect: (Band) -> Unit,
+    deviceName: String = "RTL-SDR",
+    isConnected: Boolean = false,
+    onConnectToggle: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -66,9 +69,25 @@ fun SourcePanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.SettingsInputAntenna, null, tint = SpectrumGreen, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("RTL-SDR", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(deviceName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
                 Text("RTL2832U", color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+
+                Spacer(Modifier.height(6.dp))
+                Button(
+                    onClick = onConnectToggle,
+                    modifier = Modifier.fillMaxWidth().height(30.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isConnected) Color(0xFF8B1A1A) else Color(0xFF1A5AAA)
+                    )
+                ) {
+                    Text(
+                        if (isConnected) "Disconnect" else "Connect",
+                        fontSize = 11.sp,
+                        color = Color.White
+                    )
+                }
             }
         }
 
@@ -98,9 +117,17 @@ fun SourcePanel(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Usb, null, tint = SpectrumGreen, modifier = Modifier.size(14.dp))
+            Icon(
+                Icons.Default.Usb, null,
+                tint = if (isConnected) SpectrumGreen else Color.Gray,
+                modifier = Modifier.size(14.dp)
+            )
             Spacer(Modifier.width(4.dp))
-            Text("Connected", color = SpectrumGreen, fontSize = 11.sp)
+            Text(
+                if (isConnected) "Connected" else "Disconnected",
+                color = if (isConnected) SpectrumGreen else Color.Gray,
+                fontSize = 11.sp
+            )
         }
     }
 }

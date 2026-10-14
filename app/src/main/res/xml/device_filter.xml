@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Realtek RTL2832U based DVB-T / SDR dongles -->
+    <usb-device vendor-id="3034" product-id="10290" /> <!-- 0x0bda:0x2832 -->
+    <usb-device vendor-id="3034" product-id="10296" /> <!-- 0x0bda:0x2838 -->
+    <!-- SDRplay / other common tuners (ignored gracefully if unsupported) -->
+    <usb-device vendor-id="3034" product-id="10292" /> <!-- 0x0bda:0x2840 -->
+</resources>

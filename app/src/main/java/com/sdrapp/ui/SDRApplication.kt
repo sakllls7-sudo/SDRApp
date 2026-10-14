@@ -6,6 +6,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.sdrapp.sdr.DemodType
+import com.sdrapp.sdr.SdrController
 
 val DarkBackground = Color(0xFF1A1A2E)
 val DarkSurface = Color(0xFF16213E)
@@ -13,13 +15,16 @@ val AccentBlue = Color(0xFF0F3460)
 val SpectrumGreen = Color(0xFF00FF88)
 val WaterfallBlue = Color(0xFF0088FF)
 
+private fun DemodMode.toDemodType(): DemodType = DemodType.valueOf(name)
+private fun DemodType.toDemodMode(): DemodMode = DemodMode.valueOf(name)
+
 @Composable
-fun SDRApplication() {
-    var frequency by remember { mutableStateOf(100_000_000.0) }
-    var demodMode by remember { mutableStateOf(DemodMode.WFM) }
-    var gain by remember { mutableFloatStateOf(50f) }
-    var bandwidth by remember { mutableFloatStateOf(12_500f) }
-    var isPlaying by remember { mutableStateOf(false) }
+fun SDRApplication(
+    controller: SdrController,
+    onConnectToggle: () -> Unit
+) {
+    val state by controller.state.collectAsState()
+
     var selectedBand by remember { mutableStateOf(Band.FM_BROADCAST) }
 
     Box(
@@ -29,10 +34,16 @@ fun SDRApplication() {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopBar(
-                frequency = frequency,
-                isPlaying = isPlaying,
-                onFrequencyChange = { frequency = it },
-                onPlayToggle = { isPlaying = !isPlaying }
+                frequency = state.frequency,
+                isPlaying = state.playing,
+                isConnected = state.connected,
+                isRecording = state.recording,
+                onFrequencyChange = { controller.setFrequency(it) },
+                onPlayToggle = {
+                    if (state.playing) controller.stopPlayback() else controller.startPlayback()
+                },
+                onConnectToggle = onConnectToggle,
+                onRecordToggle = { controller.toggleRecording() }
             )
 
             Row(
@@ -46,7 +57,13 @@ fun SDRApplication() {
                         .fillMaxHeight()
                         .padding(end = 4.dp),
                     selectedBand = selectedBand,
-                    onBandSelect = { selectedBand = it }
+                    onBandSelect = {
+                        selectedBand = it
+                        controller.setFrequency((it.freqStart + it.freqEnd) / 2.0)
+                    },
+                    deviceName = state.deviceName,
+                    isConnected = state.connected,
+                    onConnectToggle = onConnectToggle
                 )
 
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -57,8 +74,8 @@ fun SDRApplication() {
                             .padding(bottom = 2.dp)
                     ) {
                         SpectrumView(
-                            frequency = frequency,
-                            isPlaying = isPlaying
+                            frequency = state.frequency,
+                            isPlaying = state.playing
                         )
                     }
 
@@ -69,14 +86,14 @@ fun SDRApplication() {
                             .padding(top = 2.dp)
                     ) {
                         WaterfallView(
-                            frequency = frequency,
-                            isPlaying = isPlaying
+                            frequency = state.frequency,
+                            isPlaying = state.playing
                         )
                     }
 
                     FrequencyDisplay(
-                        frequency = frequency,
-                        onFrequencyChange = { frequency = it },
+                        frequency = state.frequency,
+                        onFrequencyChange = { controller.setFrequency(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp)
@@ -88,12 +105,15 @@ fun SDRApplication() {
                         .width(280.dp)
                         .fillMaxHeight()
                         .padding(start = 4.dp),
-                    demodMode = demodMode,
-                    onDemodModeChange = { demodMode = it },
-                    gain = gain,
-                    onGainChange = { gain = it },
-                    bandwidth = bandwidth,
-                    onBandwidthChange = { bandwidth = it }
+                    demodMode = state.demodType.toDemodMode(),
+                    onDemodModeChange = { controller.setDemodType(it.toDemodType()) },
+                    gain = state.gainPercent,
+                    onGainChange = { controller.setGainPercent(it) },
+                    bandwidth = state.bandwidthHz,
+                    onBandwidthChange = { controller.setBandwidth(it) },
+                    agcEnabled = state.agcEnabled,
+                    onAgcChange = { controller.setAgc(it) },
+                    signalDbm = state.signalDbm
                 )
             }
         }

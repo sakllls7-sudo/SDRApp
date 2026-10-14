@@ -37,7 +37,10 @@ fun ReceiverPanel(
     gain: Float,
     onGainChange: (Float) -> Unit,
     bandwidth: Float,
-    onBandwidthChange: (Float) -> Unit
+    onBandwidthChange: (Float) -> Unit,
+    agcEnabled: Boolean = true,
+    onAgcChange: (Boolean) -> Unit = {},
+    signalDbm: Float = -120f
 ) {
     Column(
         modifier = modifier
@@ -113,8 +116,8 @@ fun ReceiverPanel(
         Spacer(Modifier.height(4.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            FilterChipComponent("AGC", true, {})
-            FilterChipComponent("NFM", false, {})
+            FilterChipComponent("AGC", agcEnabled, { onAgcChange(!agcEnabled) })
+            FilterChipComponent("MGC", !agcEnabled, { onAgcChange(agcEnabled) })
         }
 
         Spacer(Modifier.weight(1f))
@@ -127,9 +130,13 @@ fun ReceiverPanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, null, tint = WaterfallBlue, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Squelch", color = Color.White, fontSize = 11.sp)
+                    Text("Signal", color = Color.White, fontSize = 11.sp)
                 }
-                Text("-70 dB", color = Color.Gray, fontSize = 10.sp)
+                Text(
+                    String.format("%.1f dBFS", signalDbm),
+                    color = if (signalDbm > -40f) SpectrumGreen else Color.Gray,
+                    fontSize = 10.sp
+                )
             }
         }
     }
