@@ -172,7 +172,7 @@ class R820T(private val bus: I2cBus, private val chip: Chip = Chip.R820T) {
 
         writeReg(0x14, ni + (si shl 6))
         var val0 = if (sdm == 0) 0x08 else 0x00
-        if (DISABLE_DITHER) val0 = val0 or 0x10
+        if (DISABLE_DITHER != 0) val0 = val0 or 0x10
         writeRegMask(0x12, val0, 0x18)
         writeReg(0x16, sdm shr 8)
         writeReg(0x15, sdm and 0xff)

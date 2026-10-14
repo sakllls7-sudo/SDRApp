@@ -68,7 +68,7 @@ class MockSdrDevice : SdrDevice {
             buffer[offset + n * 2 + 1] = ((q * 127.0) + 127.5).toInt().toByte()
         }
         // fill the tail if odd length
-        if (length % 2 != 0) buffer[offset + length - 1] = 0x80
+        if (length % 2 != 0) buffer[offset + length - 1] = 0x80.toByte()
         return length
     }
 
