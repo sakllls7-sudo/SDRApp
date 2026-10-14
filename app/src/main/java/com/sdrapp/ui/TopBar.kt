@@ -4,8 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.*
@@ -26,7 +26,8 @@ fun TopBar(
     onFrequencyChange: (Double) -> Unit,
     onPlayToggle: () -> Unit,
     onConnectToggle: () -> Unit,
-    onRecordToggle: () -> Unit
+    onRecordToggle: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -36,8 +37,8 @@ fun TopBar(
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = {}) {
-            Icon(Icons.Default.Menu, "Menu", tint = Color.White)
+        IconButton(onClick = onOpenSettings) {
+            Icon(Icons.Default.Settings, "Settings", tint = Color.White)
         }
 
         Spacer(Modifier.width(8.dp))

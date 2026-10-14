@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sdrapp.sdr.DemodType
 import com.sdrapp.sdr.SdrController
+import kotlin.math.roundToLong
 
 val DarkBackground = Color(0xFF1A1A2E)
 val DarkSurface = Color(0xFF16213E)
@@ -27,13 +28,28 @@ fun SDRApplication(
 
     var selectedBand by remember { mutableStateOf(Band.FM_BROADCAST) }
     var spanHz by remember { mutableDoubleStateOf(state.sampleRate.toDouble()) }
+    var showSettings by remember { mutableStateOf(false) }
 
     fun tune(deltaHz: Double) {
-        controller.setFrequency((controller.state.value.frequency + deltaHz).coerceIn(24_000_000.0, 1_766_000_000.0))
+        var f = controller.state.value.frequency + deltaHz
+        val st = controller.state.value
+        if (st.snapToStep && st.stepHz > 0) {
+            f = (f / st.stepHz).roundToLong().toDouble() * st.stepHz
+        }
+        controller.setFrequency(f.coerceIn(24_000_000.0, 1_766_000_000.0))
     }
 
     fun zoom(scale: Float) {
         spanHz = (spanHz / scale).coerceIn(10_000.0, 20_000_000.0)
+    }
+
+    if (showSettings) {
+        SettingsScreen(
+            state = state,
+            controller = controller,
+            onClose = { showSettings = false }
+        )
+        return
     }
 
     Box(
@@ -52,7 +68,8 @@ fun SDRApplication(
                     if (state.playing) controller.stopPlayback() else controller.startPlayback()
                 },
                 onConnectToggle = onConnectToggle,
-                onRecordToggle = { controller.toggleRecording() }
+                onRecordToggle = { controller.toggleRecording() },
+                onOpenSettings = { showSettings = true }
             )
 
             Row(
@@ -76,9 +93,10 @@ fun SDRApplication(
                 )
 
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    val specWeight = (state.splitRatio / 100f).coerceIn(0.2f, 0.8f)
                     Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .weight(specWeight)
                             .fillMaxWidth()
                             .padding(bottom = 2.dp)
                     ) {
@@ -86,6 +104,11 @@ fun SDRApplication(
                             frequency = state.frequency,
                             isPlaying = state.playing,
                             spanHz = spanHz,
+                            fftRate = state.fftRate,
+                            averaging = state.averaging,
+                            palette = state.waterfallPalette,
+                            dbMin = state.dbMin,
+                            dbMax = state.dbMax,
                             onTune = { tune(it) },
                             onZoom = { zoom(it) }
                         )
@@ -93,7 +116,7 @@ fun SDRApplication(
 
                     Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .weight(1f - specWeight)
                             .fillMaxWidth()
                             .padding(top = 2.dp)
                     ) {
@@ -101,6 +124,11 @@ fun SDRApplication(
                             frequency = state.frequency,
                             isPlaying = state.playing,
                             spanHz = spanHz,
+                            fftRate = state.fftRate,
+                            waterfallSpeed = state.waterfallSpeed,
+                            palette = state.waterfallPalette,
+                            dbMin = state.dbMin,
+                            dbMax = state.dbMax,
                             onTune = { tune(it) },
                             onZoom = { zoom(it) }
                         )

@@ -18,6 +18,21 @@ interface SdrDevice {
     /** [gainTenthDb] < 0 selects automatic (AGC) gain. */
     fun setGain(gainTenthDb: Int): Boolean
 
+    /** Oscillator frequency correction in parts per million. */
+    fun setPpmCorrection(ppm: Int): Boolean = true
+
+    /** RTL2832U digital AGC (sampler-stage AGC). */
+    fun setRtlAgc(on: Boolean): Boolean = true
+
+    /** Direct sampling mode: 0 = off, 1 = I branch, 2 = Q branch (HF). */
+    fun setDirectSampling(mode: Int): Boolean = true
+
+    /** Hardware bias tee (RTL-SDR Blog v3+): feeds DC to the antenna port. */
+    fun setBiasTee(on: Boolean): Boolean = true
+
+    /** Offset tuning (removes the zero-IF centre spike, non R820T only). */
+    fun setOffsetTuning(on: Boolean): Boolean = true
+
     /**
      * Read raw samples into [buffer]. Returns the number of bytes read,
      * or a negative value on error.

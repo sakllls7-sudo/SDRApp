@@ -36,21 +36,29 @@ fun SpectrumView(
     frequency: Double,
     isPlaying: Boolean,
     spanHz: Double,
+    fftRate: Int = 20,
+    averaging: Int = 25,
+    palette: String = "classic",
+    dbMin: Float = -120f,
+    dbMax: Float = -20f,
     onTune: (Double) -> Unit,
     onZoom: (Float) -> Unit
 ) {
     val textMeasurer = rememberTextMeasurer()
     var phase by remember { mutableFloatStateOf(0f) }
+    val smoothed = remember { mutableStateOf<FloatArray?>(null) }
 
     val spanState = rememberUpdatedState(spanHz)
     val tuneState = rememberUpdatedState(onTune)
     val zoomState = rememberUpdatedState(onZoom)
 
-    LaunchedEffect(isPlaying) {
+    val frameDelay = (1000 / fftRate.coerceIn(1, 60)).coerceAtLeast(16).toLong()
+
+    LaunchedEffect(isPlaying, frameDelay) {
         if (isPlaying) {
             while (true) {
                 phase += 0.1f
-                delay(80)
+                delay(frameDelay)
             }
         }
     }
@@ -101,6 +109,7 @@ fun SpectrumView(
             val ys = FloatArray(count)
             val f0 = frequency - spanHz / 2.0
             val hzPerPx = spanHz / w
+            val spanDb = (dbMax - dbMin).let { if (it < 1f) 1f else it }
             for (i in 0 until count) {
                 val px = i * step
                 val freq = f0 + px * hzPerPx
@@ -111,14 +120,26 @@ fun SpectrumView(
                     power += sigAmp * 30.0 * exp(-d * d * 4.0)
                 }
 
-                val y = (((power + 80.0) / 80.0) * h).toFloat().coerceIn(0f, h)
+                val y = (((dbMax - power) / spanDb) * h).toFloat().coerceIn(0f, h)
                 ys[i] = y
             }
 
-            val spectrumPath = Path().apply {
-                moveTo(0f, ys[0])
-                for (i in 1 until count) lineTo((i * step).toFloat(), ys[i])
+            // Adaptive averaging / smoothing across frames.
+            val alpha = (1f - averaging.coerceIn(0, 100) / 100f * 0.9f).coerceIn(0.05f, 1f)
+            val prev = smoothed.value
+            if (prev == null || prev.size != count) {
+                smoothed.value = ys.copyOf()
+            } else {
+                for (i in 0 until count) prev[i] += alpha * (ys[i] - prev[i])
             }
+            val drawYs = smoothed.value ?: ys
+
+            val spectrumPath = Path().apply {
+                moveTo(0f, drawYs[0])
+                for (i in 1 until count) lineTo((i * step).toFloat(), drawYs[i])
+            }
+
+            val lineColor = Color(paletteColor(palette, 0.8f))
 
             val fillPath = Path().apply {
                 addPath(spectrumPath)
@@ -131,8 +152,8 @@ fun SpectrumView(
                 fillPath,
                 Brush.verticalGradient(
                     colors = listOf(
-                        SpectrumGreen.copy(alpha = 0.3f),
-                        SpectrumGreen.copy(alpha = 0.05f),
+                        lineColor.copy(alpha = 0.3f),
+                        lineColor.copy(alpha = 0.05f),
                         Color.Transparent
                     ),
                     startY = 0f,
@@ -140,7 +161,7 @@ fun SpectrumView(
                 )
             )
 
-            drawPath(spectrumPath, SpectrumGreen, style = Stroke(width = 2f))
+            drawPath(spectrumPath, lineColor, style = Stroke(width = 2f))
 
             val cursorX = centerX + 0.1f * w
             drawLine(

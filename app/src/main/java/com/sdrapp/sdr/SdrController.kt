@@ -21,7 +21,37 @@ data class SdrState(
     val agcEnabled: Boolean = true,
     val signalDbm: Float = -120f,
     val recording: Boolean = false,
-    val status: String = "Idle"
+    val status: String = "Idle",
+
+    // Hardware
+    val ppmCorrection: Int = 0,
+    val rtlAgc: Boolean = false,
+    val directSampling: Int = 0,
+    val biasTee: Boolean = false,
+    val offsetTuning: Boolean = false,
+
+    // Demodulation
+    val deemphasisUs: Int = 75,
+    val noiseReduction: Boolean = false,
+    val squelchEnabled: Boolean = false,
+
+    // Audio
+    val audioVolume: Float = 80f,
+
+    // Display / FFT
+    val fftSize: Int = 8192,
+    val fftWindow: String = "blackman",
+    val fftRate: Int = 20,
+    val dbMin: Float = -120f,
+    val dbMax: Float = -20f,
+    val averaging: Int = 25,
+    val waterfallPalette: String = "classic",
+    val splitRatio: Float = 50f,
+    val waterfallSpeed: Int = 60,
+
+    // Tuning
+    val snapToStep: Boolean = false,
+    val stepHz: Int = 25_000
 )
 
 /**
@@ -52,8 +82,29 @@ class SdrController(
             bandwidthHz = s.bandwidthHz,
             sampleRate = s.sampleRate,
             squelchDb = s.squelchDb,
-            agcEnabled = s.agcEnabled
+            agcEnabled = s.agcEnabled,
+            ppmCorrection = s.ppmCorrection,
+            rtlAgc = s.rtlAgc,
+            directSampling = s.directSampling,
+            biasTee = s.biasTee,
+            offsetTuning = s.offsetTuning,
+            deemphasisUs = s.deemphasisUs,
+            noiseReduction = s.noiseReduction,
+            squelchEnabled = s.squelchEnabled,
+            audioVolume = s.audioVolume,
+            fftSize = s.fftSize,
+            fftWindow = s.fftWindow,
+            fftRate = s.fftRate,
+            dbMin = s.dbMin,
+            dbMax = s.dbMax,
+            averaging = s.averaging,
+            waterfallPalette = s.waterfallPalette,
+            splitRatio = s.splitRatio,
+            waterfallSpeed = s.waterfallSpeed,
+            snapToStep = s.snapToStep,
+            stepHz = s.stepHz
         )
+        audio.setVolume(s.audioVolume)
     }
 
     /** Attach (and open) a device. Pass null to detach. */
@@ -89,6 +140,10 @@ class SdrController(
         val dev = device ?: return
         val st = _state.value
         dev.setSampleRate(st.sampleRate)
+        dev.setPpmCorrection(st.ppmCorrection)
+        dev.setRtlAgc(st.rtlAgc)
+        dev.setBiasTee(st.biasTee)
+        dev.setDirectSampling(st.directSampling)
         dev.setCenterFrequency(st.frequency.toLong())
         dev.setGain(gainTenthDb(st))
     }
@@ -103,7 +158,15 @@ class SdrController(
 
     private fun rebuildDemod() {
         val st = _state.value
-        demod = Demodulator(st.demodType, st.sampleRate, st.bandwidthHz.toDouble())
+        demod = Demodulator(
+            st.demodType,
+            st.sampleRate,
+            st.bandwidthHz.toDouble(),
+            squelchEnabled = st.squelchEnabled,
+            squelchDb = st.squelchDb,
+            deemphasisUs = st.deemphasisUs,
+            noiseReduction = st.noiseReduction
+        )
     }
 
     fun startPlayback() {
@@ -216,6 +279,90 @@ class SdrController(
         persist()
     }
 
+    fun setSquelch(enabled: Boolean, db: Float) {
+        _state.value = _state.value.copy(squelchEnabled = enabled, squelchDb = db)
+        if (running) rebuildDemod()
+        persist()
+    }
+
+    fun setPpmCorrection(ppm: Int) {
+        _state.value = _state.value.copy(ppmCorrection = ppm)
+        device?.setPpmCorrection(ppm)
+        persist()
+    }
+
+    fun setRtlAgc(on: Boolean) {
+        _state.value = _state.value.copy(rtlAgc = on)
+        device?.setRtlAgc(on)
+        persist()
+    }
+
+    fun setDirectSampling(mode: Int) {
+        _state.value = _state.value.copy(directSampling = mode)
+        device?.setDirectSampling(mode)
+        persist()
+    }
+
+    fun setBiasTee(on: Boolean) {
+        _state.value = _state.value.copy(biasTee = on)
+        device?.setBiasTee(on)
+        persist()
+    }
+
+    fun setOffsetTuning(on: Boolean) {
+        _state.value = _state.value.copy(offsetTuning = on)
+        device?.setOffsetTuning(on)
+        persist()
+    }
+
+    fun setDeemphasis(us: Int) {
+        _state.value = _state.value.copy(deemphasisUs = us)
+        if (running) rebuildDemod()
+        persist()
+    }
+
+    fun setNoiseReduction(on: Boolean) {
+        _state.value = _state.value.copy(noiseReduction = on)
+        if (running) rebuildDemod()
+        persist()
+    }
+
+    fun setAudioVolume(percent: Float) {
+        _state.value = _state.value.copy(audioVolume = percent)
+        audio.setVolume(percent)
+        persist()
+    }
+
+    fun setDisplay(
+        fftSize: Int = _state.value.fftSize,
+        fftWindow: String = _state.value.fftWindow,
+        fftRate: Int = _state.value.fftRate,
+        dbMin: Float = _state.value.dbMin,
+        dbMax: Float = _state.value.dbMax,
+        averaging: Int = _state.value.averaging,
+        waterfallPalette: String = _state.value.waterfallPalette,
+        splitRatio: Float = _state.value.splitRatio,
+        waterfallSpeed: Int = _state.value.waterfallSpeed
+    ) {
+        _state.value = _state.value.copy(
+            fftSize = fftSize,
+            fftWindow = fftWindow,
+            fftRate = fftRate,
+            dbMin = dbMin,
+            dbMax = dbMax,
+            averaging = averaging,
+            waterfallPalette = waterfallPalette,
+            splitRatio = splitRatio,
+            waterfallSpeed = waterfallSpeed
+        )
+        persist()
+    }
+
+    fun setTuning(snapToStep: Boolean, stepHz: Int) {
+        _state.value = _state.value.copy(snapToStep = snapToStep, stepHz = stepHz)
+        persist()
+    }
+
     // ----- recording ------------------------------------------------------
 
     fun toggleRecording(): Boolean {
@@ -251,7 +398,27 @@ class SdrController(
                 bandwidthHz = st.bandwidthHz,
                 sampleRate = st.sampleRate,
                 squelchDb = st.squelchDb,
-                agcEnabled = st.agcEnabled
+                agcEnabled = st.agcEnabled,
+                ppmCorrection = st.ppmCorrection,
+                rtlAgc = st.rtlAgc,
+                directSampling = st.directSampling,
+                biasTee = st.biasTee,
+                offsetTuning = st.offsetTuning,
+                deemphasisUs = st.deemphasisUs,
+                noiseReduction = st.noiseReduction,
+                squelchEnabled = st.squelchEnabled,
+                audioVolume = st.audioVolume,
+                fftSize = st.fftSize,
+                fftWindow = st.fftWindow,
+                fftRate = st.fftRate,
+                dbMin = st.dbMin,
+                dbMax = st.dbMax,
+                averaging = st.averaging,
+                waterfallPalette = st.waterfallPalette,
+                splitRatio = st.splitRatio,
+                waterfallSpeed = st.waterfallSpeed,
+                snapToStep = st.snapToStep,
+                stepHz = st.stepHz
             )
         )
     }
@@ -266,8 +433,29 @@ class SdrController(
             bandwidthHz = d.bandwidthHz,
             sampleRate = d.sampleRate,
             squelchDb = d.squelchDb,
-            agcEnabled = d.agcEnabled
+            agcEnabled = d.agcEnabled,
+            ppmCorrection = d.ppmCorrection,
+            rtlAgc = d.rtlAgc,
+            directSampling = d.directSampling,
+            biasTee = d.biasTee,
+            offsetTuning = d.offsetTuning,
+            deemphasisUs = d.deemphasisUs,
+            noiseReduction = d.noiseReduction,
+            squelchEnabled = d.squelchEnabled,
+            audioVolume = d.audioVolume,
+            fftSize = d.fftSize,
+            fftWindow = d.fftWindow,
+            fftRate = d.fftRate,
+            dbMin = d.dbMin,
+            dbMax = d.dbMax,
+            averaging = d.averaging,
+            waterfallPalette = d.waterfallPalette,
+            splitRatio = d.splitRatio,
+            waterfallSpeed = d.waterfallSpeed,
+            snapToStep = d.snapToStep,
+            stepHz = d.stepHz
         )
+        audio.setVolume(d.audioVolume)
         applyAll()
     }
 

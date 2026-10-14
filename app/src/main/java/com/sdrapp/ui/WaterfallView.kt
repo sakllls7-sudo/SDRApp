@@ -34,6 +34,11 @@ fun WaterfallView(
     frequency: Double,
     isPlaying: Boolean,
     spanHz: Double,
+    fftRate: Int = 20,
+    waterfallSpeed: Int = 60,
+    palette: String = "classic",
+    dbMin: Float = -120f,
+    dbMax: Float = -20f,
     onTune: (Double) -> Unit,
     onZoom: (Float) -> Unit
 ) {
@@ -45,11 +50,13 @@ fun WaterfallView(
     val tuneState = rememberUpdatedState(onTune)
     val zoomState = rememberUpdatedState(onZoom)
 
-    LaunchedEffect(isPlaying) {
+    val lineDelay = waterfallSpeed.coerceIn(16, 300).toLong()
+
+    LaunchedEffect(isPlaying, lineDelay) {
         if (isPlaying) {
             while (true) {
                 frame++
-                delay(60)
+                delay(lineDelay)
             }
         }
     }
@@ -94,6 +101,8 @@ fun WaterfallView(
                 val row = IntArray(w)
                 val f0 = frequency - spanHz / 2.0
                 val hzPerPx = spanHz / w
+                val dbLo = dbMin.coerceIn(-200f, 0f)
+                val dbHi = dbMax.coerceIn(-200f, 0f).let { if (it <= dbLo) dbLo + 1f else it }
                 for (x in 0 until w) {
                     val freq = f0 + x * hzPerPx
                     var intensity = 0.015f + ((x * 7 + f * 13) % 5) * 0.004f
@@ -101,7 +110,10 @@ fun WaterfallView(
                         val d = (freq - s[0]) / s[1]
                         intensity += (s[2] * exp(-(d * d) * 3.0)).toFloat()
                     }
-                    row[x] = intensityColor(intensity)
+                    // Map synthetic level (0..1) onto the dB range for contrast control.
+                    val dbLevel = dbLo + intensity.coerceIn(0f, 1f) * (dbHi - dbLo)
+                    val norm = ((dbLevel - dbLo) / (dbHi - dbLo)).coerceIn(0f, 1f)
+                    row[x] = paletteColor(palette, norm)
                 }
                 bmp.setPixels(row, 0, w, 0, wf.rowIndex, w, 1)
             }
@@ -154,14 +166,3 @@ private val wfSignals = arrayOf(
     doubleArrayOf(100_900_000.0, 80_000.0, 0.35)
 )
 
-private fun intensityColor(v: Float): Int {
-    val i = v.coerceIn(0f, 1f)
-    return when {
-        i < 0.05f -> 0xFF000010.toInt()
-        i < 0.15f -> 0xFF001030.toInt()
-        i < 0.30f -> 0xFF0044AA.toInt()
-        i < 0.50f -> 0xFF00AA44.toInt()
-        i < 0.70f -> 0xFFFFAA00.toInt()
-        else -> 0xFFFF4400.toInt()
-    }
-}

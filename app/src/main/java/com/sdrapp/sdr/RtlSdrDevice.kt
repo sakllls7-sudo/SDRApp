@@ -28,6 +28,9 @@ class RtlSdrDevice(
 
     private var sampleRate = 0
     private var centerFreq = 0L
+    private var ppm = 0
+    private var rtlAgc = false
+    private var directSampling = 0
 
     @Volatile
     override var isOpen = false
@@ -53,6 +56,13 @@ class RtlSdrDevice(
         const val USB_SYSCTL = 0x2000
         const val USB_EPA_MAXPKT = 0x2002
         const val USB_EPA_CTL = 0x2004
+
+        // SYSB GPIO registers (bias tee)
+        const val GPO = 0x3001
+        const val GPI = 0x3002
+        const val GPOE = 0x3003
+        const val GPD = 0x3004
+        const val BIAS_TEE_GPIO = 0
 
         val FIR_DEFAULT = intArrayOf(
             -54, -36, -41, -40, -32, -14, 14, 53,
@@ -163,6 +173,13 @@ class RtlSdrDevice(
     private fun writeArray(block: Int, addr: Int, data: ByteArray, len: Int): Int {
         val index = (block shl 8) or 0x10
         return controlTransfer(CTRL_OUT, addr, index, data, len)
+    }
+
+    private fun readReg(block: Int, addr: Int, len: Int): Int {
+        val buf = ByteArray(len)
+        val r = readArray(block, addr, buf, len)
+        if (r < 0) return -1
+        return buf[0].toInt() and 0xff
     }
 
     private fun writeReg(block: Int, addr: Int, value: Int, len: Int): Int {
@@ -345,6 +362,62 @@ class RtlSdrDevice(
         // enable/disable RF AGC loop in the RTL2832U
         demodWriteReg(1, 0x04, if (vgaCtrl != 0) 0x80 else 0x00)
         return true
+    }
+
+    override fun setPpmCorrection(ppm: Int): Boolean {
+        this.ppm = ppm
+        r820t?.setFreqCorrection(ppm)
+        setSampleFreqCorrection(ppm)
+        if (centerFreq > 0) setCenterFrequency(centerFreq)
+        return true
+    }
+
+    override fun setRtlAgc(on: Boolean): Boolean {
+        rtlAgc = on
+        return demodWriteReg(0, 0x19, if (on) 0x25 else 0x05) == 0
+    }
+
+    override fun setDirectSampling(mode: Int): Boolean {
+        if (mode == directSampling) return true
+        directSampling = mode
+        if (mode != 0) {
+            // disable Zero-IF mode
+            demodWriteReg(1, 0xb1, 0x1a)
+            // disable spectrum inversion
+            demodWriteReg(1, 0x15, 0x00)
+            // only enable In-phase ADC input
+            demodWriteReg(0, 0x08, 0x4d)
+            // swap I and Q ADC to select the input
+            demodWriteReg(0, 0x06, if (mode > 1) 0x90 else 0x80)
+        } else {
+            r820t?.let { withI2cRepeater { it.init() } }
+            setIfFreq(IF_FREQ_DEFAULT)
+            demodWriteReg(1, 0x15, 0x01) // enable spectrum inversion
+            demodWriteReg(0, 0x08, 0xcd) // enable In-phase + Quadrature ADC
+            demodWriteReg(1, 0xb1, 0x1b) // enable Zero-IF mode
+            demodWriteReg(0, 0x06, 0x80) // default ADC_I/ADC_Q datapath
+        }
+        if (centerFreq > 0) setCenterFrequency(centerFreq)
+        return true
+    }
+
+    override fun setBiasTee(on: Boolean): Boolean {
+        val gpio = 1 shl BIAS_TEE_GPIO
+        var r = readReg(SYSB, GPD, 1)
+        if (r < 0) return false
+        writeReg(SYSB, GPD, r and gpio.inv(), 1)
+        r = readReg(SYSB, GPOE, 1)
+        if (r < 0) return false
+        writeReg(SYSB, GPOE, r or gpio, 1)
+        r = readReg(SYSB, GPO, 1)
+        if (r < 0) return false
+        writeReg(SYSB, GPO, if (on) (r or gpio) else (r and gpio.inv()), 1)
+        return true
+    }
+
+    override fun setOffsetTuning(on: Boolean): Boolean {
+        // Not supported by R820T/R828D dongles (librtlsdr returns -2).
+        return false
     }
 
     override fun readSync(buffer: ByteArray, offset: Int, length: Int): Int {

@@ -38,6 +38,7 @@ class R820T(private val bus: I2cBus, private val chip: Chip = Chip.R820T) {
     private var sideband = 0
 
     private var lastVcoCurr = 0xff
+    private var ppmCorrection = 0
     private var lastIfMode = 0
     private var lastManualGain = 0
     private var lastExtendedMode = 0
@@ -119,7 +120,7 @@ class R820T(private val bus: I2cBus, private val chip: Chip = Chip.R820T) {
         val vcoMax = vcoMin * 2   // cfg.vco_algo == 0
         val vcoPowerRef = if (chip == Chip.R828D) 1 else 2
 
-        val pllRef = xtal
+        val pllRef = (xtal * (1.0 + ppmCorrection / 1_000_000.0)).toLong()
 
         val freqKhz = (freq + 500) / 1000
 
@@ -381,6 +382,11 @@ class R820T(private val bus: I2cBus, private val chip: Chip = Chip.R820T) {
             break
         }
         return rc
+    }
+
+    /** Applies the oscillator correction (ppm); takes effect on the next setFreq(). */
+    fun setFreqCorrection(ppm: Int) {
+        ppmCorrection = ppm
     }
 
     fun init(): Int {

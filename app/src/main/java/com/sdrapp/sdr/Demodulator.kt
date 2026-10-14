@@ -3,6 +3,7 @@ package com.sdrapp.sdr
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tanh
@@ -19,7 +20,11 @@ class Demodulator(
     private val mode: DemodType,
     private val inputRate: Int,
     bandwidthHz: Double,
-    private val audioRate: Int = 48_000
+    private val audioRate: Int = 48_000,
+    private val squelchEnabled: Boolean = false,
+    squelchDb: Float = -70f,
+    deemphasisUs: Int = 75,
+    private val noiseReduction: Boolean = false
 ) {
     private val decim = (inputRate / audioRate).coerceAtLeast(1)
 
@@ -69,6 +74,26 @@ class Demodulator(
 
     private var acc = 0.0
     private var accCount = 0
+
+    // De-emphasis (WFM): one-pole low-pass with the selected time constant.
+    private val deAlpha: Double = if (deemphasisUs > 0 && mode == DemodType.WFM) {
+        val tau = deemphasisUs * 1e-6
+        val dt = 1.0 / audioRate
+        dt / (tau + dt)
+    } else 0.0
+    private var deState = 0.0
+
+    // Light noise-reduction smoothing (hiss reduction).
+    private val nrAlpha: Double = if (noiseReduction) {
+        val dt = 1.0 / audioRate
+        val tau = 1.0 / (2.0 * PI * 3000.0)
+        dt / (tau + dt)
+    } else 0.0
+    private var nrState = 0.0
+
+    // Squelch: mute output when the audio envelope falls below the threshold.
+    private val squelchLin: Double = 10.0.pow(squelchDb / 20.0)
+    private var env = 0.0
 
     init {
         val w0 = 2.0 * PI * fc / inputRate
@@ -137,8 +162,20 @@ class Demodulator(
                 hpPrevY = hp
                 a = hp
 
+                if (nrAlpha > 0.0) {
+                    nrState += nrAlpha * (a - nrState)
+                    a = nrState
+                }
+
+                if (deAlpha > 0.0) {
+                    deState += deAlpha * (a - deState)
+                    a = deState
+                }
+
                 if (outIdx < out.size) {
-                    out[outIdx++] = (tanh(a * 1.5) * 0.95).toFloat()
+                    env += 0.01 * (kotlin.math.abs(a) - env)
+                    val gated = if (squelchEnabled && env < squelchLin) 0.0 else a
+                    out[outIdx++] = (tanh(gated * 1.5) * 0.95).toFloat()
                 }
             }
         }
