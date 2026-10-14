@@ -34,7 +34,6 @@ Java_com_sdrapp_sdr_native_AAudioEngine_nativeInit(JNIEnv *env, jobject thiz, ji
     AAudioStreamBuilder_setChannelCount(builder, 1);
     AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
     AAudioStreamBuilder_setBufferCapacityInFrames(builder, g_bufferSize);
-    AAudioStreamBuilder_setVolume(builder, g_volume);
 
     result = AAudioStreamBuilder_openStream(builder, &g_stream);
     AAudioStreamBuilder_delete(builder);
