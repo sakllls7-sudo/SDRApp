@@ -60,11 +60,7 @@ public:
     void push_iq(const int8_t* data, size_t len) override {
         if (running_.load() && iq_callback_) {
             iq_callback_(data, len);
-}
-
-std::unique_ptr<ISource> SourceManager::create_java_source() {
-    return std::make_unique<JavaSource>();
-}
+        }
     }
 
     void set_iq_callback(std::function<void(const int8_t*, size_t)> cb) {
