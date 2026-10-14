@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 #define LOG_TAG "AAudioSink"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -89,8 +90,11 @@ public:
     size_t available() const override {
         if (!stream_) return 0;
         int32_t capacity = AAudioStream_getBufferCapacityInFrames(stream_);
-        int32_t available = AAudioStream_getFramesAvailable(stream_);
-        return static_cast<size_t>(capacity - available);
+        int32_t written = AAudioStream_getFramesWritten(stream_);
+        int32_t read = AAudioStream_getFramesRead(stream_);
+        // For output stream, available = capacity - (written - read)
+        int32_t available = capacity - (written - read);
+        return static_cast<size_t>(std::max(0, available));
     }
 
 private:

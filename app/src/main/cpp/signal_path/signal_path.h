@@ -81,11 +81,6 @@ public:
     void push_iq(const int8_t* data, size_t len);
 
 private:
-    void reader_thread();
-    void dsp_thread();
-    void audio_thread();
-
-    void apply_config();
 
     SignalPathConfig config_;
     std::atomic<bool> running_{false};
