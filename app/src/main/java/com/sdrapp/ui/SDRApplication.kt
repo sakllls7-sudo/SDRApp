@@ -26,6 +26,15 @@ fun SDRApplication(
     val state by controller.state.collectAsState()
 
     var selectedBand by remember { mutableStateOf(Band.FM_BROADCAST) }
+    var spanHz by remember { mutableDoubleStateOf(state.sampleRate.toDouble()) }
+
+    fun tune(deltaHz: Double) {
+        controller.setFrequency((controller.state.value.frequency + deltaHz).coerceIn(24_000_000.0, 1_766_000_000.0))
+    }
+
+    fun zoom(scale: Float) {
+        spanHz = (spanHz / scale).coerceIn(10_000.0, 20_000_000.0)
+    }
 
     Box(
         modifier = Modifier
@@ -75,7 +84,10 @@ fun SDRApplication(
                     ) {
                         SpectrumView(
                             frequency = state.frequency,
-                            isPlaying = state.playing
+                            isPlaying = state.playing,
+                            spanHz = spanHz,
+                            onTune = { tune(it) },
+                            onZoom = { zoom(it) }
                         )
                     }
 
@@ -87,7 +99,10 @@ fun SDRApplication(
                     ) {
                         WaterfallView(
                             frequency = state.frequency,
-                            isPlaying = state.playing
+                            isPlaying = state.playing,
+                            spanHz = spanHz,
+                            onTune = { tune(it) },
+                            onZoom = { zoom(it) }
                         )
                     }
 

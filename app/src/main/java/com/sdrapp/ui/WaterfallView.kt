@@ -3,6 +3,7 @@ package com.sdrapp.ui
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -30,11 +32,18 @@ private class WaterfallState {
 @Composable
 fun WaterfallView(
     frequency: Double,
-    isPlaying: Boolean
+    isPlaying: Boolean,
+    spanHz: Double,
+    onTune: (Double) -> Unit,
+    onZoom: (Float) -> Unit
 ) {
     val textMeasurer = rememberTextMeasurer()
     val wf = remember { WaterfallState() }
     var frame by remember { mutableIntStateOf(0) }
+
+    val spanState = rememberUpdatedState(spanHz)
+    val tuneState = rememberUpdatedState(onTune)
+    val zoomState = rememberUpdatedState(onZoom)
 
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
@@ -52,7 +61,17 @@ fun WaterfallView(
             .background(Color.Black)
             .padding(4.dp)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val hzPerPx = spanState.value / size.width
+                        tuneState.value(-pan.x * hzPerPx)
+                        zoomState.value(zoom)
+                    }
+                }
+        ) {
             val w = size.width.toInt().coerceAtLeast(1)
             val h = size.height.toInt().coerceAtLeast(1)
             val f = frame
@@ -73,13 +92,15 @@ fun WaterfallView(
                 wf.lastFrame = f
                 wf.rowIndex = if (wf.rowIndex <= 0) h - 1 else wf.rowIndex - 1
                 val row = IntArray(w)
-                val t = f * 0.02f
+                val f0 = frequency - spanHz / 2.0
+                val hzPerPx = spanHz / w
                 for (x in 0 until w) {
-                    val fx = x.toFloat() / w
+                    val freq = f0 + x * hzPerPx
                     var intensity = 0.015f + ((x * 7 + f * 13) % 5) * 0.004f
-                    intensity += signalPeak(fx, 0.42f, 0.02f, 0.55f, t)
-                    intensity += signalPeak(fx, 0.58f, 0.010f, 0.75f, t)
-                    intensity += signalPeak(fx, 0.72f, 0.03f, 0.40f, t)
+                    for (s in wfSignals) {
+                        val d = (freq - s[0]) / s[1]
+                        intensity += (s[2] * exp(-(d * d) * 3.0)).toFloat()
+                    }
                     row[x] = intensityColor(intensity)
                 }
                 bmp.setPixels(row, 0, w, 0, wf.rowIndex, w, 1)
@@ -125,10 +146,13 @@ fun WaterfallView(
     }
 }
 
-private fun signalPeak(fx: Float, center: Float, width: Float, amp: Float, t: Float): Float {
-    val d = (fx - center - 0.01f * kotlin.math.sin(t * 2f)) / width
-    return amp * 0.5f * exp(-d * d * 3f)
-}
+// {centerHz, bandwidthHz, amplitude}
+private val wfSignals = arrayOf(
+    doubleArrayOf(99_900_000.0, 60_000.0, 0.85),
+    doubleArrayOf(100_350_000.0, 120_000.0, 0.45),
+    doubleArrayOf(99_200_000.0, 40_000.0, 0.55),
+    doubleArrayOf(100_900_000.0, 80_000.0, 0.35)
+)
 
 private fun intensityColor(v: Float): Int {
     val i = v.coerceIn(0f, 1f)
