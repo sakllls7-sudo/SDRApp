@@ -444,7 +444,30 @@ class RtlSdrDevice(
     override fun readSync(buffer: ByteArray, offset: Int, length: Int): Int {
         val conn = connection ?: return -1
         val ep = epIn ?: return -1
-        return conn.bulkTransfer(ep, buffer, offset, length, READ_TIMEOUT)
+        val n = conn.bulkTransfer(ep, buffer, offset, length, READ_TIMEOUT)
+        // Detect USB buffer overflow / dropped bursts. SDR++ resets endpoint
+        // in that case; do the same by re-initializing the buffer.
+        if (n == length) {
+            // check if every sample equal (stuck buffer)
+            val first = buffer[offset].toInt() and 0xff
+            var allEqual = true
+            for (i in offset until offset + length) {
+                if ((buffer[i].toInt() and 0xff) != first) {
+                    allEqual = false
+                    break
+                }
+            }
+            if (allEqual) {
+                // reset endpoint
+                try {
+                    writeReg(USBB, USB_EPA_CTL, 0x1002, 2)
+                    Thread.sleep(5)
+                    writeReg(USBB, USB_EPA_CTL, 0x0000, 2)
+                    Thread.sleep(5)
+                } catch (_: Exception) { }
+            }
+        }
+        return n
     }
 
     private inline fun <T> withI2cRepeaterResult(block: () -> T): T {
