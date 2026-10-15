@@ -84,6 +84,12 @@ public:
     bool empty() const { return size_.load(std::memory_order_acquire) == 0; }
     bool full() const { return size_.load(std::memory_order_acquire) == capacity_; }
 
+    void clear() {
+        head_.store(0, std::memory_order_release);
+        tail_.store(0, std::memory_order_release);
+        size_.store(0, std::memory_order_release);
+    }
+
     const std::vector<T>& data() const { return data_; }
     std::vector<T>& data() { return data_; }
 

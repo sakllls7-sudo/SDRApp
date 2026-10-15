@@ -108,7 +108,7 @@ public:
     size_t get_underruns() const { return underruns_.load(); }
 
     // Static callback for AAudio
-    static aaudio_data_callback_result dataCallback(
+    static aaudio_data_callback_result_t dataCallback(
         AAudioStream* stream, void* userData, void* audioData, int32_t numFrames) {
 
         AAudioSink* self = static_cast<AAudioSink*>(userData);
