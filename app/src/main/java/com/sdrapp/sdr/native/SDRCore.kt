@@ -1,10 +1,8 @@
 package com.sdrapp.sdr.native
 
-class SDRCore {
-    companion object {
-        init {
-            System.loadLibrary("sdrapp_core")
-        }
+object SDRCore {
+    init {
+        System.loadLibrary("sdrapp_core")
     }
 
     external fun nativeInit(): Boolean

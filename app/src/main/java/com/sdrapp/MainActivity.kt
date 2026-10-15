@@ -19,6 +19,7 @@ import com.sdrapp.sdr.MockSdrDevice
 import com.sdrapp.sdr.RtlSdrDevice
 import com.sdrapp.sdr.SdrController
 import com.sdrapp.sdr.SettingsRepository
+import com.sdrapp.sdr.native.SDRCore
 import com.sdrapp.ui.SDRApplication
 
 class MainActivity : ComponentActivity() {
