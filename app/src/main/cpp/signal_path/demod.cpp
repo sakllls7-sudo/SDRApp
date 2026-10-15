@@ -26,12 +26,20 @@ void Demodulator::reset() {
 }
 
 void Demodulator::rebuild_filters() {
-    double fc_hz = fc_;
-    if (config_.mode == DemodMode::WFM) fc_hz = 15000.0;
-    else if (config_.mode == DemodMode::NFM) fc_hz = config_.bandwidth / 2.0;
-    else if (config_.mode == DemodMode::AM) fc_hz = config_.bandwidth / 2.0;
-    else if (config_.mode == DemodMode::CW) fc_hz = 400.0;
-    else fc_hz = config_.bandwidth / 2.0;
+    // Set filter cutoff based on mode
+    double fc_hz;
+    if (config_.mode == DemodMode::WFM) {
+        fc_hz = 15000.0; // 15kHz for wide FM
+    } else if (config_.mode == DemodMode::NFM) {
+        fc_hz = std::min(config_.bandwidth / 2.0, 5000.0); // 5kHz max for NFM
+    } else if (config_.mode == DemodMode::AM) {
+        fc_hz = config_.bandwidth / 2.0; // AM bandwidth
+    } else if (config_.mode == DemodMode::CW) {
+        fc_hz = 400.0; // narrow for CW
+    } else {
+        // SSB (USB/LSB) - audio bandwidth filter
+        fc_hz = std::min(config_.bandwidth / 2.0, 4000.0); // 4kHz audio bandwidth
+    }
 
     fc_hz = std::clamp(fc_hz, 80.0, input_rate_ * 0.45);
     fc_ = fc_hz;
@@ -49,12 +57,12 @@ void Demodulator::rebuild_filters() {
     lp_a1_ = (-2.0 * cosw) / a0;
     lp_a2_ = (1.0 - alpha) / a0;
 
-    // DC block
+    // DC block (25 Hz high-pass)
     double rc = 1.0 / (2.0 * M_PI * 25.0);
     double dt = 1.0 / input_rate_;
     hp_alpha_ = rc / (rc + dt);
 
-    // De-emphasis
+    // De-emphasis (WFM only)
     if (config_.deemphasis_us > 0 && config_.mode == DemodMode::WFM) {
         double tau = config_.deemphasis_us * 1e-6;
         double dt_audio = 1.0 / output_rate_;
@@ -63,7 +71,7 @@ void Demodulator::rebuild_filters() {
         deemph_alpha_ = 0.0;
     }
 
-    // Noise reduction
+    // Noise reduction (first-order LPF at ~3kHz equivalent)
     if (config_.noise_reduction) {
         double tau = 1.0 / (2.0 * M_PI * 3000.0);
         double dt_audio = 1.0 / output_rate_;
@@ -72,7 +80,7 @@ void Demodulator::rebuild_filters() {
         nr_alpha_ = 0.0;
     }
 
-    // Squelch
+    // Squelch threshold
     squelch_lin_ = pow(10.0, config_.squelch_db / 20.0);
 
     // FM params
@@ -80,11 +88,19 @@ void Demodulator::rebuild_filters() {
     fm_gain_ = (config_.mode == DemodMode::WFM || config_.mode == DemodMode::NFM)
         ? input_rate_ / (2.0 * M_PI * fm_dev_) : 1.0;
 
-    // SSB/CW shift
-    if (config_.mode == DemodMode::USB) shift_hz_ = config_.bandwidth / 2.0;
-    else if (config_.mode == DemodMode::LSB) shift_hz_ = -config_.bandwidth / 2.0;
-    else if (config_.mode == DemodMode::CW) shift_hz_ = 700.0;
-    else shift_hz_ = 0.0;
+    // SSB/CW frequency shift
+    // For SSB: shift by carrier offset. The carrier is at center_freq + bandwidth/2 for USB,
+    // center_freq - bandwidth/2 for LSB. Since we're at baseband (0 Hz = center_freq),
+    // USB needs +bandwidth/2 shift, LSB needs -bandwidth/2 shift.
+    if (config_.mode == DemodMode::USB) {
+        shift_hz_ = config_.bandwidth / 2.0;
+    } else if (config_.mode == DemodMode::LSB) {
+        shift_hz_ = -config_.bandwidth / 2.0;
+    } else if (config_.mode == DemodMode::CW) {
+        shift_hz_ = 700.0; // BFO offset
+    } else {
+        shift_hz_ = 0.0;
+    }
 
     decim_ = std::max(1, int(input_rate_ / output_rate_));
 }
@@ -127,9 +143,6 @@ inline double Demodulator::biquad_lp(double input) {
 }
 
 inline double Demodulator::dc_block(double input) {
-    double hp = hp_alpha_ * (hp_alpha_ + input - hp_alpha_); // corrected
-    hp = hp_alpha_ * (hp_alpha_ + input - hp_alpha_); // This is wrong, fixing below
-    // Proper DC block:
     double out = hp_alpha_ * (state_.hp_prev_y + input - state_.hp_prev_x);
     state_.hp_prev_x = input;
     state_.hp_prev_y = out;
@@ -150,7 +163,7 @@ size_t Demodulator::process(const uint8_t* iq_data, size_t byte_count, float* ou
         double i = ((iq_data[n * 2] & 0xFF) - 127.5) / 127.5;
         double q = ((iq_data[n * 2 + 1] & 0xFF) - 127.5) / 127.5;
 
-        // DC removal on IQ
+        // DC removal on IQ (slow averaging to remove DC offset)
         state_.dc_i += (i - state_.dc_i) * 0.001;
         state_.dc_q += (q - state_.dc_q) * 0.001;
         i -= state_.dc_i;
@@ -158,11 +171,14 @@ size_t Demodulator::process(const uint8_t* iq_data, size_t byte_count, float* ou
 
         double s = 0.0;
         switch (config_.mode) {
-            case DemodMode::AM:
+            case DemodMode::AM: {
+                // AM envelope detection: sqrt(I^2 + Q^2)
                 s = sqrt(i * i + q * q);
                 break;
+            }
             case DemodMode::WFM:
             case DemodMode::NFM: {
+                // FM: phase discrimination
                 double ph = atan2(q, i);
                 double d = ph - state_.prev_phase;
                 if (d > M_PI) d -= 2.0 * M_PI;
@@ -174,9 +190,22 @@ size_t Demodulator::process(const uint8_t* iq_data, size_t byte_count, float* ou
             case DemodMode::USB:
             case DemodMode::LSB:
             case DemodMode::CW: {
+                // Product detector for SSB/CW
+                // Shift by carrier offset, then low-pass filter
                 state_.mix_phase += 2.0 * M_PI * shift_hz_ / input_rate_;
                 if (state_.mix_phase > 2.0 * M_PI) state_.mix_phase -= 2.0 * M_PI;
-                s = i * cos(state_.mix_phase) + q * sin(state_.mix_phase);
+
+                // Product detector: I*cos + Q*sin for USB, I*cos - Q*sin for LSB
+                double cos_ph = cos(state_.mix_phase);
+                double sin_ph = sin(state_.mix_phase);
+
+                if (config_.mode == DemodMode::USB) {
+                    // USB: I*cos - Q*sin (upper sideband)
+                    s = i * cos_ph - q * sin_ph;
+                } else {
+                    // LSB/CW: I*cos + Q*sin (lower sideband)
+                    s = i * cos_ph + q * sin_ph;
+                }
                 break;
             }
             case DemodMode::RAW:
@@ -184,7 +213,7 @@ size_t Demodulator::process(const uint8_t* iq_data, size_t byte_count, float* ou
                 break;
         }
 
-        // Low-pass filter
+        // Low-pass filter (applied at input rate)
         double y = biquad_lp(s);
 
         // Decimation
@@ -204,7 +233,7 @@ size_t Demodulator::process(const uint8_t* iq_data, size_t byte_count, float* ou
                 hp = state_.nr_state;
             }
 
-            // De-emphasis
+            // De-emphasis (WFM only)
             if (deemph_alpha_ > 0.0) {
                 state_.deemph_state += deemph_alpha_ * (hp - state_.deemph_state);
                 hp = state_.deemph_state;
