@@ -58,6 +58,7 @@ data class SdrState(
 /**
  * Owns the SDR device, the demodulation/audio pipeline and background
  * reader thread. UI observes [state].
+ * Native SignalPath handles all DSP and audio via AAudio.
  */
 class SdrController(
     private val context: Context,
@@ -106,7 +107,8 @@ class SdrController(
             snapToStep = s.snapToStep,
             stepHz = s.stepHz
         )
-        audio.setVolume(s.audioVolume)
+        // Initialize native core with default config
+        SDRCore.nativeInit()
     }
 
     /** Attach (and open) a device. Pass null to detach. */
@@ -157,19 +159,6 @@ class SdrController(
         val idx = ((st.gainPercent / 100f) * (gains.size - 1)).roundToInt()
             .coerceIn(0, gains.size - 1)
         return gains[idx]
-    }
-
-    private fun rebuildDemod() {
-        val st = _state.value
-        demod = Demodulator(
-            st.demodType,
-            st.sampleRate,
-            st.bandwidthHz.toDouble(),
-            squelchEnabled = st.squelchEnabled,
-            squelchDb = st.squelchDb,
-            deemphasisUs = st.deemphasisUs,
-            noiseReduction = st.noiseReduction
-        )
     }
 
     fun startPlayback() {
@@ -260,21 +249,6 @@ class SdrController(
         }
     }
 
-            val now = System.currentTimeMillis()
-            val fftInterval = (1000L / st.fftRate.coerceIn(1, 60)).coerceAtLeast(15L)
-            if (now - lastFft >= fftInterval) {
-                lastFft = now
-                analyzer.process(buf, n, st.averaging)
-            }
-
-            if (now - lastLevelUpdate >= 200) {
-                lastLevelUpdate = now
-                val dbm = computeLevel(buf, n)
-                _state.value = _state.value.copy(signalDbm = dbm)
-            }
-        }
-    }
-
     private fun computeLevel(buf: ByteArray, n: Int): Float {
         var sum = 0.0
         var count = 0
@@ -299,12 +273,13 @@ class SdrController(
         _state.value = _state.value.copy(frequency = freq)
         device?.setCenterFrequency(freq.toLong())
         analyzer.setCenter(freq)
+        SDRCore.nativeSetCenterFreq(freq.toLong())
         persist()
     }
 
     fun setDemodType(type: DemodType) {
         _state.value = _state.value.copy(demodType = type)
-        if (running) rebuildDemod()
+        SDRCore.nativeSetMode(type.ordinal)
         persist()
     }
 
@@ -316,7 +291,7 @@ class SdrController(
 
     fun setBandwidth(bw: Float) {
         _state.value = _state.value.copy(bandwidthHz = bw)
-        if (running) rebuildDemod()
+        SDRCore.nativeSetBandwidth(bw)
         persist()
     }
 
@@ -324,7 +299,23 @@ class SdrController(
         _state.value = _state.value.copy(sampleRate = rate)
         device?.setSampleRate(rate)
         analyzer.configure(_state.value.fftSize, _state.value.fftWindow, rate, _state.value.frequency)
-        if (running) rebuildDemod()
+        SDRCore.nativeConfigure(
+            null,
+            rate,
+            _state.value.frequency.toLong(),
+            (_state.value.gainPercent * 4.96).toInt(),
+            _state.value.ppmCorrection,
+            _state.value.rtlAgc,
+            _state.value.directSampling,
+            _state.value.biasTee,
+            _state.value.demodType.ordinal,
+            _state.value.bandwidthHz,
+            _state.value.squelchEnabled,
+            _state.value.squelchDb,
+            _state.value.deemphasisUs,
+            _state.value.noiseReduction,
+            _state.value.audioVolume
+        )
         persist()
     }
 
@@ -336,7 +327,7 @@ class SdrController(
 
     fun setSquelch(enabled: Boolean, db: Float) {
         _state.value = _state.value.copy(squelchEnabled = enabled, squelchDb = db)
-        if (running) rebuildDemod()
+        SDRCore.nativeSetSquelch(enabled, db)
         persist()
     }
 
@@ -372,19 +363,51 @@ class SdrController(
 
     fun setDeemphasis(us: Int) {
         _state.value = _state.value.copy(deemphasisUs = us)
-        if (running) rebuildDemod()
+        SDRCore.nativeConfigure(
+            null,
+            _state.value.sampleRate,
+            _state.value.frequency.toLong(),
+            (_state.value.gainPercent * 4.96).toInt(),
+            _state.value.ppmCorrection,
+            _state.value.rtlAgc,
+            _state.value.directSampling,
+            _state.value.biasTee,
+            _state.value.demodType.ordinal,
+            _state.value.bandwidthHz,
+            _state.value.squelchEnabled,
+            _state.value.squelchDb,
+            us,
+            _state.value.noiseReduction,
+            _state.value.audioVolume
+        )
         persist()
     }
 
     fun setNoiseReduction(on: Boolean) {
         _state.value = _state.value.copy(noiseReduction = on)
-        if (running) rebuildDemod()
+        SDRCore.nativeConfigure(
+            null,
+            _state.value.sampleRate,
+            _state.value.frequency.toLong(),
+            (_state.value.gainPercent * 4.96).toInt(),
+            _state.value.ppmCorrection,
+            _state.value.rtlAgc,
+            _state.value.directSampling,
+            _state.value.biasTee,
+            _state.value.demodType.ordinal,
+            _state.value.bandwidthHz,
+            _state.value.squelchEnabled,
+            _state.value.squelchDb,
+            _state.value.deemphasisUs,
+            on,
+            _state.value.audioVolume
+        )
         persist()
     }
 
     fun setAudioVolume(percent: Float) {
         _state.value = _state.value.copy(audioVolume = percent)
-        audio.setVolume(percent)
+        SDRCore.nativeSetVolume(percent)
         persist()
     }
 
@@ -512,12 +535,13 @@ class SdrController(
             snapToStep = d.snapToStep,
             stepHz = d.stepHz
         )
-        audio.setVolume(d.audioVolume)
+        SDRCore.nativeSetVolume(d.audioVolume)
         applyAll()
     }
 
     fun release() {
         stopPlayback()
         closeDevice()
+        SDRCore.nativeCleanup()
     }
 }

@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
         }
         controller.release()
+        SDRCore.nativeCleanup()
     }
 
     private fun toggleConnect() {

@@ -228,8 +228,8 @@ void SignalPath::set_bandwidth(float bw) {
 }
 
 void SignalPath::set_volume(float vol) {
-    config_.volume = std::clamp(vol, 0.0f, 1.0f);
-    if (sink_) sink_->set_volume(config_.volume);
+    config_.volume = vol;
+    if (sink_) sink_->set_volume(vol);
 }
 
 void SignalPath::set_squelch(bool enable, float db) {
